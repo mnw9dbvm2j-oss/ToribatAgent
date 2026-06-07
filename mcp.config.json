@@ -1,0 +1,21 @@
+{
+  "enabled": false,
+  "servers": {
+    "filesystem": {
+      "enabled": false,
+      "command": "",
+      "args": []
+    }
+  },
+  "filesystem": {
+    "enabled": false,
+    "allowedRoots": [
+      "C:\\ToribatAgent",
+      "E:\\ToribatMagicSchool"
+    ]
+  },
+  "allowedRoots": [
+    "C:\\ToribatAgent",
+    "E:\\ToribatMagicSchool"
+  ]
+}

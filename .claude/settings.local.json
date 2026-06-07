@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\ToribatAgent\" -Recurse -File | ForEach-Object { $_.FullName } | Sort-Object)",
+      "Bash(node scripts/verify-pre-v48.js)",
+      "Bash(node scripts/verify-v51-v54.js)",
+      "Bash(node scripts/verify-v55.js)",
+      "Bash(node scripts/verify-v56-v60.js)"
+    ]
+  }
+}

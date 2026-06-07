@@ -1,0 +1,51 @@
+[
+  {
+    "key": "school_name",
+    "label": "학교 이름",
+    "value": "Toribat Magic School",
+    "importance": 5,
+    "pinned": true
+  },
+  {
+    "key": "faculty",
+    "label": "교수진",
+    "value": "소규모 핵심 교수진",
+    "importance": 4,
+    "pinned": true
+  },
+  {
+    "key": "student_npcs",
+    "label": "학생 NPC",
+    "value": "동급생, 라이벌, 조력자 중심",
+    "importance": 4,
+    "pinned": true
+  },
+  {
+    "key": "main_quest",
+    "label": "메인 퀘스트",
+    "value": "입학 첫날 비밀방 단서 발견",
+    "importance": 5,
+    "pinned": true
+  },
+  {
+    "key": "world_structure",
+    "label": "월드 구조",
+    "value": "본관, 중앙홀, 복도, 교실, 안뜰, 비밀방",
+    "importance": 5,
+    "pinned": true
+  },
+  {
+    "key": "magic_rules",
+    "label": "마법 규칙",
+    "value": "4~6개 핵심 주문",
+    "importance": 5,
+    "pinned": true
+  },
+  {
+    "key": "project_goal",
+    "label": "프로젝트 목표",
+    "value": "고품질 마법학교 감성 + 작은 규모",
+    "importance": 5,
+    "pinned": true
+  }
+]

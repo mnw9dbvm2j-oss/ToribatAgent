@@ -1,0 +1,45 @@
+{
+  "name": "toribat-agent",
+  "version": "2.0.0",
+  "description": "ToribatMagicSchool AI 개발팀 자율 에이전트 V2",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "verify": "node scripts/verify-v19-v21.js && node scripts/verify-v22-v24.js && node scripts/verify-v25-v27.js && node scripts/verify-v28-v30.js && node scripts/verify-v31-v34.js && node scripts/verify-v35-v38.js && node scripts/verify-v39-v42.js && node scripts/verify-v43-v46.js && node scripts/verify-v47.js && node scripts/verify-v48-v50.js && node scripts/verify-pre-v48.js && node scripts/verify-v51-v54.js && node scripts/verify-v55.js && node scripts/verify-v56-v60.js",
+    "verify:pre-v48": "node scripts/verify-pre-v48.js",
+    "verify:v51-v54": "node scripts/verify-v51-v54.js",
+    "verify:v55": "node scripts/verify-v55.js",
+    "verify:v56-v60": "node scripts/verify-v56-v60.js",
+    "verify:v22-v24": "node scripts/verify-v22-v24.js",
+    "verify:v25-v27": "node scripts/verify-v25-v27.js",
+    "verify:v28-v30": "node scripts/verify-v28-v30.js",
+    "verify:v31-v34": "node scripts/verify-v31-v34.js",
+    "verify:v35-v38": "node scripts/verify-v35-v38.js",
+    "verify:v39-v42": "node scripts/verify-v39-v42.js",
+    "verify:v43-v46": "node scripts/verify-v43-v46.js",
+    "verify:v47": "node scripts/verify-v47.js",
+    "verify:v48-v50": "node scripts/verify-v48-v50.js",
+    "build": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.toribat.agent",
+    "productName": "ToribatAgent",
+    "icon": "assets/icon.ico",
+    "win": {
+      "target": "nsis",
+      "artifactName": "ToribatAgent-Setup.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "electron": "^25.9.8",
+    "electron-builder": "^24.0.0"
+  }
+}

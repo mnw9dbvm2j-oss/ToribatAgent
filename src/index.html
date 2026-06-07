@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>ToribatAgent</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,'Malgun Gothic',sans-serif;background:#0d0d0f;color:#e8e6df;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+.titlebar{height:38px;background:#111114;display:flex;align-items:center;justify-content:space-between;padding:0 16px;-webkit-app-region:drag;user-select:none;border-bottom:1px solid #1e1e22;flex-shrink:0;}
+.titlebar-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#c8c6bf;}
+.titlebar-logo{font-size:18px;}
+.titlebar-btns{display:flex;gap:4px;-webkit-app-region:no-drag;}
+.tbtn{width:28px;height:28px;border-radius:6px;border:none;background:transparent;color:#666;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background 0.15s;}
+.tbtn:hover{background:#252529;color:#c8c6bf;}
+.tbtn.close:hover{background:#5a1a1a;color:#f09595;}
+
+.app{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:200px;background:#111114;border-right:1px solid #1e1e22;display:flex;flex-direction:column;flex-shrink:0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:13px;color:#666;cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;}
+.nav-item:hover{background:#18181c;color:#c8c6bf;}
+.nav-item.active{background:#18181c;color:#a78bfa;border-left-color:#a78bfa;}
+.nav-item .icon{font-size:16px;width:20px;text-align:center;}
+.sidebar-bottom{margin-top:auto;padding:12px;}
+.run-btn{width:100%;padding:10px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:inherit;}
+.run-btn.start{background:#0f2a1a;color:#4caf7d;border:1px solid #1d5c35;}
+.run-btn.start:hover{background:#163d26;}
+.run-btn.stop{background:#2a0f0f;color:#e24b4a;border:1px solid #5c1d1d;}
+.run-btn.stop:hover{background:#3d1616;}
+.status-dot-row{display:flex;align-items:center;gap:6px;justify-content:center;margin-top:8px;font-size:12px;color:#555;}
+.sdot{width:7px;height:7px;border-radius:50%;background:#444;}
+.sdot.on{background:#4caf7d;animation:pulse 1.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.page{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.page.active{display:flex;}
+
+/* Dashboard */
+.dash-content{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.stat{background:#18181c;border-radius:10px;padding:14px;border:1px solid #1e1e22;}
+.stat-label{font-size:11px;color:#555;margin-bottom:4px;}
+.stat-val{font-size:24px;font-weight:600;}
+.v-green{color:#4caf7d;} .v-blue{color:#5b9cf6;} .v-amber{color:#f0a940;} .v-purple{color:#a78bfa;}
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;}
+.agent{background:#18181c;border-radius:10px;padding:12px;border:1px solid #1e1e22;transition:all 0.3s;}
+.agent.working{border-color:#4caf7d;background:#0d1f14;}
+.agent.done{border-color:#5b9cf6;background:#0d1424;}
+.agent-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.av{width:36px;height:36px;border-radius:50%;background:#252529;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.agent.working .av{animation:avatarPulse 2s ease-in-out infinite;}
+@keyframes avatarPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.aname{font-size:13px;font-weight:600;color:#e8e6df;}
+.arole{font-size:11px;color:#555;}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;display:inline-block;margin-bottom:6px;}
+.b-idle{background:#252529;color:#555;}
+.b-working{background:#0f2a1a;color:#4caf7d;}
+.b-done{background:#0d1a2e;color:#5b9cf6;}
+.ai-badge{font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px;}
+.ai-claude{background:#1a0d2e;color:#a78bfa;}
+.ai-codex{background:#2a1a0d;color:#f0a940;}
+.ai-gpt{background:#0d2218;color:#4caf7d;}
+.task-txt{font-size:12px;color:#777;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;min-height:15px;}
+.pbar{height:3px;background:#252529;border-radius:2px;overflow:hidden;}
+.pfill{height:100%;border-radius:2px;transition:width 0.6s ease;}
+.pf-green{background:#4caf7d;} .pf-blue{background:#5b9cf6;} .pf-gray{background:#333;}
+
+/* Log */
+.log-wrap{background:#0a0a0c;border:1px solid #1e1e22;border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;}
+.log-inner{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px;font-family:'Consolas','D2Coding',monospace;}
+.le{display:flex;gap:10px;font-size:12px;line-height:1.6;padding:1px 0;}
+.lt{color:#333;min-width:64px;flex-shrink:0;}
+.lm{color:#666;}
+.lm.success{color:#4caf7d;} .lm.info{color:#5b9cf6;} .lm.warn{color:#f0a940;} .lm.cycle{color:#a78bfa;} .lm.error{color:#e24b4a;}
+
+/* Tasks page */
+.tasks-content{flex:1;overflow-y:auto;padding:20px;}
+.task-list{background:#18181c;border-radius:10px;border:1px solid #1e1e22;overflow:hidden;margin-bottom:16px;}
+.task-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #1a1a1e;font-size:13px;}
+.task-item:last-child{border-bottom:none;}
+.task-item.done-item{opacity:0.35;}
+.tdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.td-red{background:#e24b4a;} .td-yellow{background:#f0a940;} .td-green{background:#4caf7d;} .td-done{background:#5b9cf6;}
+.task-label{flex:1;color:#c8c6bf;}
+.ttag{font-size:11px;padding:2px 7px;border-radius:4px;background:#252529;color:#555;}
+.tassign{font-size:11px;color:#444;min-width:80px;text-align:right;}
+.add-task-row{display:flex;gap:8px;margin-top:12px;}
+.add-task-row input{flex:1;background:#18181c;border:1px solid #2a2a2e;border-radius:8px;padding:8px 12px;color:#e8e6df;font-size:13px;font-family:inherit;}
+.add-task-row input:focus{outline:none;border-color:#444;}
+.add-task-row select{background:#18181c;border:1px solid #2a2a2e;border-radius:8px;padding:8px 10px;color:#e8e6df;font-size:13px;font-family:inherit;}
+.abtn{background:#18181c;border:1px solid #2a2a2e;color:#c8c6bf;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;transition:all 0.15s;}
+.abtn:hover{background:#252529;border-color:#444;}
+.abtn.primary{background:#0f2a1a;border-color:#1d5c35;color:#4caf7d;}
+.abtn.primary:hover{background:#163d26;}
+.section-label{font-size:12px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;}
+
+/* Settings */
+.settings-content{flex:1;overflow-y:auto;padding:20px;}
+.setting-card{background:#18181c;border-radius:10px;border:1px solid #1e1e22;padding:20px;margin-bottom:16px;}
+.setting-title{font-size:14px;font-weight:600;color:#e8e6df;margin-bottom:14px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;color:#666;margin-bottom:6px;}
+.field input{width:100%;background:#111114;border:1px solid #2a2a2e;border-radius:8px;padding:9px 12px;color:#e8e6df;font-size:13px;font-family:inherit;}
+.field input:focus{outline:none;border-color:#444;}
+.field input[type=range]{padding:0;margin-top:4px;}
+.ai-routing{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px;}
+.ai-box{border-radius:8px;padding:12px;border:1px solid;}
+.ai-box.claude{background:#1a0d2e;border-color:#3d2060;} 
+.ai-box.codex{background:#2a1a0d;border-color:#604020;}
+.ai-box.gpt{background:#0d2218;border-color:#1d5c35;}
+.ai-box-title{font-size:13px;font-weight:600;margin-bottom:6px;}
+.ai-box.claude .ai-box-title{color:#a78bfa;}
+.ai-box.codex .ai-box-title{color:#f0a940;}
+.ai-box.gpt .ai-box-title{color:#4caf7d;}
+.ai-box-desc{font-size:11px;color:#555;line-height:1.5;}
+
+.agent.disabled{opacity:0.35;filter:grayscale(0.9);border-style:dashed;}
+.agent.disabled .badge{background:#221414;color:#9a5d5d;}
+.agent-toggle-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;}
+.agent-toggle{display:flex;align-items:center;gap:10px;background:#111114;border:1px solid #2a2a2e;border-radius:8px;padding:10px 12px;font-size:13px;color:#c8c6bf;}
+.agent-toggle input{width:auto;}
+.agent-toggle small{display:block;color:#555;font-size:11px;margin-top:2px;}
+.agent-toggle.off{opacity:0.55;}
+.tool-content{flex:1;overflow-y:auto;padding:20px;}
+.tool-actions{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.md-view{background:#111114;border:1px solid #1e1e22;border-radius:8px;padding:14px;color:#c8c6bf;font-size:12px;line-height:1.65;white-space:pre-wrap;min-height:220px;font-family:'Consolas','D2Coding',monospace;}
+.knowledge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;}
+.knowledge-item{background:#18181c;border:1px solid #1e1e22;border-radius:8px;padding:12px;}
+.knowledge-item.pinned{border-color:#4caf7d;background:#0d1f14;}
+.knowledge-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.knowledge-title{font-size:13px;font-weight:600;color:#e8e6df;}
+.knowledge-item textarea{width:100%;min-height:80px;background:#111114;border:1px solid #2a2a2e;border-radius:8px;color:#c8c6bf;padding:8px;font-size:12px;font-family:inherit;resize:vertical;}
+.knowledge-meta{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:#666;}
+.knowledge-meta input[type=number]{width:54px;background:#111114;border:1px solid #2a2a2e;border-radius:6px;color:#e8e6df;padding:4px 6px;}
+.data-list{display:flex;flex-direction:column;gap:8px;}
+.data-row{background:#18181c;border:1px solid #1e1e22;border-radius:8px;padding:12px;display:grid;grid-template-columns:90px 80px 1fr 190px;gap:10px;align-items:center;font-size:12px;color:#c8c6bf;}
+.data-row small{display:block;color:#555;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.status-pill{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:700;}
+.status-pass{background:#0f2a1a;color:#4caf7d;}
+.status-review{background:#2a210f;color:#f0a940;}
+.status-reject{background:#2a0f0f;color:#e24b4a;}
+.duplicate-hint{font-size:12px;margin-top:8px;color:#777;min-height:18px;}
+.duplicate-hint.warn{color:#f0a940;}
+.duplicate-hint.reject{color:#e24b4a;}
+.check-list{display:flex;flex-direction:column;gap:8px;margin:12px 0;}
+.check-row{display:grid;grid-template-columns:28px 1fr 90px;gap:8px;align-items:center;background:#18181c;border:1px solid #1e1e22;border-radius:8px;padding:10px;font-size:12px;color:#c8c6bf;}
+.check-row.duplicate{opacity:0.55;border-color:#5c1d1d;}
+.wide-row{grid-template-columns:110px 1fr 170px 100px;}
+.validation-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-bottom:12px;}
+.validation-card{background:#111114;border:1px solid #2a2a2e;border-radius:8px;padding:12px;}
+.validation-card strong{display:block;font-size:18px;margin-top:6px;color:#e8e6df;}
+.validation-card small{color:#666;font-size:11px;}
+.validation-table{width:100%;border-collapse:collapse;background:#111114;border:1px solid #2a2a2e;border-radius:8px;overflow:hidden;margin-bottom:12px;font-size:12px;}
+.validation-table th,.validation-table td{border-bottom:1px solid #222228;padding:8px;text-align:left;vertical-align:top;}
+.validation-table th{color:#aaa;background:#15151a;font-weight:600;}
+.validation-table tr:last-child td{border-bottom:none;}
+.level-badge{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;background:#24242b;color:#ddd;font-weight:700;}
+.level-0{background:#2b1c1f;color:#f09595;}
+.level-1{background:#2b2618;color:#f0a940;}
+.level-2{background:#172332;color:#5b9cf6;}
+.level-3{background:#172b22;color:#4caf7d;}
+.level-4{background:#241b35;color:#a78bfa;}
+.trust-pass{color:#4caf7d}.trust-warn{color:#f0a940}.trust-fail{color:#e24b4a}
+.issue-list{display:grid;gap:8px;margin-bottom:12px;}
+.issue-item{padding:10px;border:1px solid #5c1d1d;background:#211417;border-radius:8px;color:#f09595;font-size:12px;}
+.issue-item.warn{border-color:#604020;background:#211d12;color:#f0a940;}
+
+</style>
+</head>
+<body>
+
+<div class="titlebar">
+  <div class="titlebar-left">
+    <span class="titlebar-logo">🧙</span>
+    <span>ToribatAgent</span>
+    <span style="color:#444;font-size:11px;font-weight:400;margin-left:4px">v30 — Build Diagnostics · Vertical Slice · Command Center</span>
+  </div>
+  <div class="titlebar-btns">
+    <button class="tbtn" onclick="window.api.minimize()">─</button>
+    <button class="tbtn" onclick="window.api.maximize()">□</button>
+    <button class="tbtn close" onclick="window.api.close()">✕</button>
+  </div>
+</div>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="icon">📊</span>대시보드</div>
+    <div class="nav-item" onclick="showPage('tasks',this)"><span class="icon">📋</span>태스크</div>
+    <div class="nav-item" onclick="showPage('generated',this)"><span class="icon">🔁</span>생성 태스크</div>
+    <div class="nav-item" onclick="showPage('reviews',this)"><span class="icon">🧪</span>검수</div>
+    <div class="nav-item" onclick="showPage('candidates',this)"><span class="icon">📦</span>적용 후보</div>
+    <div class="nav-item" onclick="showPage('sprints',this)"><span class="icon">🗓️</span>스프린트</div>
+    <div class="nav-item" onclick="showPage('analysis',this)"><span class="icon">🔎</span>프로젝트 분석</div>
+    <div class="nav-item" onclick="showPage('patches',this)"><span class="icon">🩹</span>패치 후보</div>
+    <div class="nav-item" onclick="showPage('vertical',this)"><span class="icon">🎯</span>수직 슬라이스</div>
+    <div class="nav-item" onclick="showPage('command',this)"><span class="icon">🧭</span>지휘 센터</div>
+    <div class="nav-item" onclick="showPage('pmvalidation',this)"><span class="icon">✅</span>PM 검증</div>
+    <div class="nav-item" onclick="showPage('trace',this)"><span class="icon">🧷</span>통합 추적</div>
+    <div class="nav-item" onclick="showPage('applyqueue',this)"><span class="icon">🛡️</span>적용 큐</div>
+    <div class="nav-item" onclick="showPage('knowledge',this)"><span class="icon">📌</span>공유 지식</div>
+    <div class="nav-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span>설정</div>
+    <div class="sidebar-bottom">
+      <button class="run-btn start" id="run-btn" onclick="toggleRun()">▶ AI팀 시작</button>
+      <div class="status-dot-row"><div class="sdot" id="sdot"></div><span id="status-txt">대기 중</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="dash-content">
+        <div class="stats-row">
+          <div class="stat"><div class="stat-label">완료 태스크</div><div class="stat-val v-green" id="s-done">0</div></div>
+          <div class="stat"><div class="stat-label">남은 태스크</div><div class="stat-val v-purple" id="s-todo">—</div></div>
+          <div class="stat"><div class="stat-label">사이클</div><div class="stat-val v-amber" id="s-cycle">0</div></div>
+          <div class="stat"><div class="stat-label">생성 파일</div><div class="stat-val v-blue" id="s-files">0</div></div>
+        </div>
+        <div>
+          <div class="section-label">AI 직원 현황</div>
+          <div class="agent-grid" id="agent-grid"></div>
+        </div>
+        <div>
+          <div class="section-label">실시간 로그</div>
+          <div class="log-wrap" style="max-height:200px"><div class="log-inner" id="log-list"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tasks -->
+    <div class="page" id="page-tasks">
+      <div class="tasks-content">
+        <div class="section-label" style="margin-bottom:12px">태스크 목록 (todo.md)</div>
+        <div class="task-list" id="task-list"></div>
+        <div class="add-task-row">
+          <input id="new-task-input" placeholder="새 태스크 입력... (예: 빗자루 비행 시스템 C++ 구현)" oninput="checkDuplicateDraft()" />
+          <select id="new-task-tag">
+            <option value="[코드]">💻 [코드]</option>
+            <option value="[월드]">🌍 [월드]</option>
+            <option value="[아트]">🖌️ [아트]</option>
+            <option value="[스토리]">📖 [스토리]</option>
+            <option value="[QA]">🔍 [QA]</option>
+            <option value="[전체]">📦 [전체]</option>
+          </select>
+          <select id="new-task-pri">
+            <option value="🔴">🔴 높음</option>
+            <option value="🟡">🟡 중간</option>
+            <option value="🟢">🟢 낮음</option>
+          </select>
+          <button class="abtn primary" onclick="addTask()">+ 추가</button>
+        </div>
+        <div class="duplicate-hint" id="duplicate-hint"></div>
+      </div>
+    </div>
+
+    <!-- Generated Tasks -->
+    <div class="page" id="page-generated">
+      <div class="tool-content">
+        <div class="section-label">에이전트 간 생성 태스크</div>
+        <div class="tool-actions">
+          <button class="abtn" onclick="loadGeneratedTasks()">새로고침</button>
+          <button class="abtn primary" onclick="approveGeneratedTasks()">PM 승인 → todo.md 추가</button>
+        </div>
+        <div class="md-view" id="generated-view">generated_tasks.md를 불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- Reviews -->
+    <div class="page" id="page-reviews">
+      <div class="tool-content">
+        <div class="section-label">Reviewer Agent 검수 결과</div>
+        <div class="duplicate-hint">Reviewer 종류, PASS/REVIEW/REJECT, 점수를 함께 표시합니다.</div>
+        <div class="tool-actions"><button class="abtn" onclick="loadReviews()">새로고침</button></div>
+        <div class="data-list" id="reviews-list"></div>
+      </div>
+    </div>
+
+    <!-- Apply Candidates -->
+    <div class="page" id="page-candidates">
+      <div class="tool-content">
+        <div class="section-label">게임 적용 후보</div>
+        <div class="tool-actions">
+          <button class="abtn" onclick="loadApplyCandidates()">새로고침</button>
+        </div>
+        <!-- 코드 후보 생성 섹션 -->
+        <div class="section-label" style="margin-top:16px;font-size:13px;color:#aaa">코드 후보 생성 (apply_candidates/code)</div>
+        <div class="tool-actions" id="code-candidate-actions" style="flex-wrap:wrap;gap:6px">
+          <button class="abtn primary" onclick="generateAllCodeCandidates()">전체 후보 생성</button>
+          <button class="abtn" onclick="generateCodeCandidate('magic_component')">Magic Component</button>
+          <button class="abtn" onclick="generateCodeCandidate('quest_state_manager')">Quest Manager</button>
+          <button class="abtn" onclick="generateCodeCandidate('save_game')">Save Game</button>
+          <button class="abtn" onclick="generateCodeCandidate('dialogue_component')">Dialogue Component</button>
+          <button class="abtn" onclick="generateCodeCandidate('basic_enemy_ai')">Basic Enemy AI</button>
+        </div>
+        <div id="code-candidate-status" style="font-size:12px;color:#888;margin:6px 0 12px 0"></div>
+        <!-- 후보 목록 -->
+        <div class="data-list" id="candidates-list"></div>
+      </div>
+    </div>
+
+    <!-- Sprints -->
+    <div class="page" id="page-sprints">
+      <div class="tool-content">
+        <div class="section-label">PM Sprint 시스템</div>
+        <div class="tool-actions">
+          <button class="abtn primary" onclick="createSprint()">새 스프린트 생성</button>
+          <button class="abtn" onclick="loadSprints()">목록 새로고침</button>
+          <button class="abtn" onclick="loadCurrentSprint()">현재 스프린트 보기</button>
+        </div>
+        <div class="data-list" id="sprints-list"></div>
+        <div class="md-view" id="sprint-view" style="margin-top:12px">sprint_001.md를 불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- Project Analysis -->
+    <div class="page" id="page-analysis">
+      <div class="tool-content">
+        <div class="section-label">프로젝트 자동 분석관</div>
+        <div class="tool-actions">
+          <button class="abtn primary" onclick="runProjectAnalysis()">Source / Content / Config / Plugins 스캔</button>
+          <button class="abtn primary" onclick="runBuildDiagnostics()">빌드 로그 분석</button>
+          <button class="abtn" onclick="loadProjectReport()">보고서 새로고침</button>
+        </div>
+        <div class="md-view" id="analysis-view">project_status.md를 불러오는 중...</div>
+        <div class="md-view" id="build-view" style="margin-top:12px">build_diagnostics.md를 불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- Patch Candidates -->
+    <div class="page" id="page-patches">
+      <div class="tool-content">
+        <div class="section-label">빌드 오류별 패치 후보</div>
+        <div class="tool-actions">
+          <button class="abtn primary" onclick="generatePatchCandidates()">패치 후보 생성</button>
+          <button class="abtn" onclick="loadPatchCandidates()">새로고침</button>
+          <button class="abtn" onclick="copyFirstPatchPrompt()">Claude Code 프롬프트 복사</button>
+          <button class="abtn" onclick="discardPatchCandidate()">후보 폐기</button>
+        </div>
+        <div class="data-list" id="patch-list"></div>
+      </div>
+    </div>
+
+    <!-- Vertical Slice -->
+    <div class="page" id="page-vertical">
+      <div class="tool-content">
+        <div class="section-label">수직 슬라이스 마스터 플랜</div>
+        <div class="tool-actions">
+          <button class="abtn primary" onclick="generateVerticalSlicePlan()">플랜 생성</button>
+          <button class="abtn" onclick="loadVerticalSlicePlan()">플랜 새로고침</button>
+          <button class="abtn" onclick="generateVerticalSliceStatus()">달성률 분석</button>
+        </div>
+        <div class="md-view" id="vertical-status-view">vertical_slice_status.md를 불러오는 중...</div>
+        <div class="md-view" id="vertical-view">vertical_slice_plan.md를 불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- Command Center -->
+    <div class="page" id="page-command">
+      <div class="tool-content">
+        <div class="section-label">자동 개발 지휘 센터</div>
+        <div class="tool-actions">
+          <button class="abtn primary" onclick="generateCommandCenter()">현재 상태 분석</button>
+          <button class="abtn" onclick="generateCommandCenter()">다음 10개 태스크 생성</button>
+          <button class="abtn" onclick="createSprintFromCommand()">다음 스프린트 생성</button>
+          <button class="abtn" onclick="generateCommandCenter()">실패 태스크 복구 제안</button>
+          <button class="abtn" onclick="selectAllCommandCandidates(true)">전체 선택</button>
+          <button class="abtn" onclick="selectAllCommandCandidates(false)">선택 해제</button>
+          <button class="abtn primary" onclick="approveSelectedCommandTasks()">선택 항목 todo.md 추가</button>
+        </div>
+        <div class="md-view" id="command-game-state">game_state.md를 불러오는 중...</div>
+        <div class="check-list" id="command-candidates"></div>
+        <div class="md-view" id="command-view">command_center.md를 불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- PM Validation -->
+    <div class="page" id="page-pmvalidation">
+      <div class="tool-content">
+        <div class="section-label">PM 판단 검증 대시보드</div>
+        <div class="tool-actions">
+          <button class="abtn primary" onclick="runPmValidation()">PM 판단 검증 실행</button>
+          <button class="abtn" onclick="loadPmValidation()">검증 보고서 새로고침</button>
+        </div>
+        <div class="validation-grid" id="pm-validation-summary"></div>
+        <div class="section-label">상태 0~4 분류표</div>
+        <div id="pm-validation-status"></div>
+        <div class="section-label">문제 감지</div>
+        <div class="issue-list" id="pm-validation-issues"></div>
+        <div class="section-label">추천 태스크 품질 검사</div>
+        <div id="pm-validation-recommendations"></div>
+        <div class="md-view" id="pm-validation-view">pm_validation.md를 불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- Traceability -->
+    <div class="page" id="page-trace">
+      <div class="tool-content">
+        <div class="section-label">결과물/리뷰/빌드오류 통합 추적</div>
+        <div class="tool-actions">
+          <button class="abtn primary" onclick="generateTraceability()">통합 추적 생성</button>
+          <button class="abtn" onclick="loadTraceability()">새로고침</button>
+        </div>
+        <div class="md-view" id="trace-view">traceability.md를 불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- Apply Queue -->
+    <div class="page" id="page-applyqueue">
+      <div class="tool-content">
+        <div class="section-label">안전 적용 큐</div>
+        <div class="tool-actions">
+          <button class="abtn primary" onclick="registerApplyCandidate()">적용 후보 등록</button>
+          <button class="abtn" onclick="loadApplyQueue()">새로고침</button>
+          <button class="abtn" onclick="runApplyDryRun()">dry-run 실행</button>
+          <button class="abtn" onclick="approveApplyQueue()">승인</button>
+          <button class="abtn" onclick="rejectApplyQueue()">거절</button>
+        </div>
+        <div class="data-list" id="applyqueue-list"></div>
+        <div class="md-view" id="applyqueue-view" style="margin-top:12px">diff를 선택하거나 dry-run을 실행하세요.</div>
+      </div>
+    </div>
+
+    <!-- Knowledge -->
+    <div class="page" id="page-knowledge">
+      <div class="tool-content">
+        <div class="section-label">고급 공유 지식 네트워크</div>
+        <div class="tool-actions">
+          <button class="abtn" onclick="loadPinnedKnowledge()">새로고침</button>
+          <button class="abtn primary" onclick="savePinnedKnowledge()">Pinned Knowledge 저장</button>
+        </div>
+        <div class="knowledge-grid" id="knowledge-grid"></div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="page" id="page-settings">
+      <div class="settings-content">
+        <div class="setting-card">
+          <div class="setting-title">🔑 API 키 설정</div>
+          <div class="field"><label>OpenAI API Key (ChatGPT - 기본 사용)</label><input type="password" id="cfg-openai" placeholder="sk-..."/></div>
+          <div class="field"><label>Anthropic API Key (Claude - 코드 폴백용)</label><input type="password" id="cfg-anthropic" placeholder="sk-ant-..."/></div>
+          <p style="font-size:12px;color:#555;margin-top:8px">Claude Code CLI는 이미 로그인되어 있어 별도 키가 필요 없습니다. API 키는 폴백용입니다.</p>
+        </div>
+        <div class="setting-card">
+          <div class="setting-title">📁 프로젝트 설정</div>
+          <div class="field"><label>언리얼 프로젝트 경로</label><input type="text" id="cfg-path" placeholder="E:\ToribatMagicSchool"/></div>
+          <div class="field"><label>사이클 간격 (초): <span id="interval-val">60</span>초</label><input type="range" min="30" max="300" step="10" value="60" id="cfg-interval" oninput="document.getElementById('interval-val').textContent=this.value"/></div>
+          <div class="field"><label>동시 실행 태스크 수: <span id="parallel-val">4</span>개</label><input type="range" min="1" max="8" step="1" value="4" id="cfg-parallel" oninput="document.getElementById('parallel-val').textContent=this.value"/></div>
+          <div class="field"><label>Claude Code 제한 시간 (초): <span id="timeout-val">300</span>초</label><input type="range" min="120" max="900" step="60" value="300" id="cfg-timeout" oninput="document.getElementById('timeout-val').textContent=this.value"/></div>
+          <label class="agent-toggle"><input type="checkbox" id="cfg-allow-apply"> 실제 파일 적용 허용<small>기본 OFF. OFF일 때 적용 큐는 dry-run만 실행합니다.</small></label>
+        </div>
+
+        <div class="setting-card">
+          <div class="setting-title">👥 에이전트 ON/OFF</div>
+          <p style="font-size:12px;color:#666;margin-bottom:12px;line-height:1.6">
+            사용자가 직접 담당할 파트는 OFF로 두세요. OFF된 에이전트와 관련된 태스크는 자동 실행에서 보류됩니다.
+          </p>
+          <div class="agent-toggle-grid" id="agent-toggle-grid"></div>
+        </div>
+
+        <div class="setting-card">
+          <div class="setting-title">🎯 결과물 품질 기준</div>
+          <p style="font-size:12px;color:#777;line-height:1.7">목표: <b style="color:#e8e6df">호그와트 레거시급 비주얼 감성</b> + <b style="color:#e8e6df">해리포터와 비밀의 방 PC판 수준의 작은 규모</b>.</p>
+          <p style="font-size:12px;color:#777;line-height:1.7;margin-top:6px">모든 결과물은 목표, 적용 위치, 실제 산출물, 구현 방법, 테스트 방법, 다음 태스크를 포함해야 합니다. 빈약한 결과물은 실패/품질 확인 필요로 처리됩니다.</p>
+        </div>
+        <div class="setting-card">
+          <div class="setting-title">🤖 AI 라우팅 규칙</div>
+          <div class="ai-routing">
+            <div class="ai-box gpt"><div class="ai-box-title">ChatGPT — 문서/기획</div><div class="ai-box-desc">스토리·대사 작성<br>아트 프롬프트<br>게임 기획 문서<br>월드 설계 초안<br><span style="color:#4caf7d;font-weight:600">파일 수정 없는 작업</span></div></div>
+            <div class="ai-box codex"><div class="ai-box-title">Claude API — 분석/폴백</div><div class="ai-box-desc">QA 리포트<br>긴 설계 문서<br>분석·검토<br>ChatGPT 폴백<br><span style="color:#f0a940;font-weight:600">가짜 Codex 표기 제거</span></div></div>
+            <div class="ai-box claude" style="border:2px solid #3d2060"><div class="ai-box-title">✅ Claude Code — 실제 파일 수정</div><div class="ai-box-desc">UE5 C++ 파일 생성<br>기존 코드 수정<br>버그 수정·리팩터링<br>GAS 등 복잡한 시스템<br><span style="color:#a78bfa;font-weight:600">[코드] 태스크 우선 담당</span></div></div>
+          </div>
+        </div>
+        <button class="abtn primary" onclick="saveSettings()" style="width:100%;padding:12px">설정 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const AGENTS = [
+  {key:'code',emoji:'💻',name:'코드 마스터',role:'C++ · Blueprint',defaultOn:true},
+  {key:'render',emoji:'🎨',name:'렌더링 전문가',role:'Lumen · Niagara',defaultOn:false},
+  {key:'world',emoji:'🌍',name:'월드 빌더',role:'레벨 · 오픈월드',defaultOn:false},
+  {key:'game',emoji:'⚔️',name:'게임플레이',role:'전투 · 퀘스트',defaultOn:true},
+  {key:'art',emoji:'🖌️',name:'아트 디렉터',role:'에셋 · 프롬프트',defaultOn:false},
+  {key:'qa',emoji:'🔍',name:'QA 엔지니어',role:'버그 · 밸런싱',defaultOn:true},
+  {key:'story',emoji:'📖',name:'스토리 작가',role:'퀘스트 · 대사',defaultOn:true},
+  {key:'pm',emoji:'📋',name:'프로젝트 매니저',role:'일정 · 보고',defaultOn:true},
+  {key:'ai',emoji:'🤖',name:'AI 시스템 엔지니어',role:'라우팅 · 자동화',defaultOn:true},
+  {key:'dungeon',emoji:'🏰',name:'던전 디자이너',role:'던전 · 퍼즐',defaultOn:false},
+  {key:'sound',emoji:'🎵',name:'사운드 디렉터',role:'음악 · 효과음',defaultOn:false},
+  {key:'balance',emoji:'🧠',name:'밸런스 디자이너',role:'수치 · 성장',defaultOn:true},
+  {key:'magic',emoji:'🧙',name:'마법 시스템 설계자',role:'주문 · 속성',defaultOn:true}
+];
+
+let running = false;
+let config = {};
+let pinnedKnowledge = [];
+let duplicateTimer = null;
+let patchCandidates = [];
+let commandCandidates = [];
+let applyQueueItems = [];
+
+function getEnabledAgents(){
+  const saved = config.enabledAgents || {};
+  const result = {};
+  AGENTS.forEach(a => result[a.key] = saved[a.key] !== undefined ? saved[a.key] : a.defaultOn);
+  return result;
+}
+
+function buildAgentToggles(){
+  const el=document.getElementById('agent-toggle-grid');
+  if(!el) return;
+  const enabled=getEnabledAgents();
+  el.innerHTML=AGENTS.map(a=>`
+    <label class="agent-toggle ${enabled[a.key]?'':'off'}" id="toggle-wrap-${a.key}">
+      <input type="checkbox" id="agent-toggle-${a.key}" ${enabled[a.key]?'checked':''} onchange="onAgentToggleChange('${a.key}')">
+      <span>${a.emoji} ${a.name}<small>${a.role}</small></span>
+    </label>
+  `).join('');
+}
+
+function onAgentToggleChange(key){
+  const cb=document.getElementById('agent-toggle-'+key);
+  const wrap=document.getElementById('toggle-wrap-'+key);
+  if(wrap) wrap.classList.toggle('off', !cb.checked);
+  applyAgentVisibility();
+}
+
+function applyAgentVisibility(){
+  const enabled=getEnabledAgentsFromUI();
+  AGENTS.forEach((a,i)=>{
+    const card=document.getElementById('ac'+i);
+    const badge=document.getElementById('ab'+i);
+    if(!card) return;
+    const off=!enabled[a.key];
+    card.classList.toggle('disabled', off);
+    if(off && badge){
+      badge.className='badge b-idle';
+      badge.textContent='OFF';
+    }
+  });
+}
+
+function getEnabledAgentsFromUI(){
+  const current=getEnabledAgents();
+  AGENTS.forEach(a=>{
+    const cb=document.getElementById('agent-toggle-'+a.key);
+    if(cb) current[a.key]=cb.checked;
+  });
+  return current;
+}
+
+// 에이전트 카드 생성
+function buildAgents(){
+  const g = document.getElementById('agent-grid');
+  g.innerHTML = AGENTS.map((a,i)=>`
+    <div class="agent idle" id="ac${i}">
+      <div class="agent-top"><div class="av">${a.emoji}</div><div><div class="aname">${a.name}</div><div class="arole">${a.role}</div></div></div>
+      <span class="badge b-idle" id="ab${i}">대기 중</span>
+      <div class="task-txt" id="at${i}">—</div>
+      <div class="pbar"><div class="pfill pf-gray" id="ap${i}" style="width:0%"></div></div>
+    </div>`).join('');
+  applyAgentVisibility();
+}
+buildAgents();
+
+function aiClassName(ai){
+  if(ai==='Claude Code') return 'claude';
+  if(ai==='ChatGPT') return 'gpt';
+  if(ai==='Local AI') return 'gpt';
+  return 'codex';
+}
+
+// 에이전트 상태 업데이트
+window.api.onAgentUpdate(d=>{
+  const c=document.getElementById('ac'+d.index);
+  const b=document.getElementById('ab'+d.index);
+  const t=document.getElementById('at'+d.index);
+  const p=document.getElementById('ap'+d.index);
+  if(!c) return;
+  c.className='agent '+d.state;
+  if(d.state==='working'){b.className='badge b-working';b.innerHTML=`작업 중<span class="ai-badge ai-${aiClassName(d.ai)}">${d.ai}</span>`;p.className='pfill pf-green';}
+  else if(d.state==='done'){b.className='badge b-done';b.textContent='완료';p.className='pfill pf-blue';}
+  else{b.className='badge b-idle';b.textContent='대기 중';p.className='pfill pf-gray';}
+  t.textContent=d.task||'—';
+  p.style.width=(d.progress||0)+'%';
+  applyAgentVisibility();
+});
+
+// 로그
+window.api.onLog(d=>{
+  const el=document.getElementById('log-list');
+  const row=document.createElement('div');
+  row.className='le';
+  row.innerHTML=`<span class="lt">${d.time}</span><span class="lm ${d.type||''}">${d.msg}</span>`;
+  el.appendChild(row);
+  el.scrollTop=el.scrollHeight;
+  if(el.children.length>200) el.removeChild(el.firstChild);
+});
+
+// 통계
+window.api.onStatsUpdate(d=>{
+  if(d.completedTasks!=null) document.getElementById('s-done').textContent=d.completedTasks;
+  if(d.generatedFiles!=null) document.getElementById('s-files').textContent=d.generatedFiles;
+});
+window.api.onCycleUpdate(d=>{
+  document.getElementById('s-cycle').textContent=d.cycle;
+});
+window.api.onGeneratedTasksUpdate(()=>loadGeneratedTasks());
+window.api.onApplyCandidatesUpdate(()=>loadApplyCandidates());
+
+// 상태
+window.api.onStatusChange(d=>{
+  running=d.running;
+  const btn=document.getElementById('run-btn');
+  const dot=document.getElementById('sdot');
+  const txt=document.getElementById('status-txt');
+  if(d.running){btn.className='run-btn stop';btn.textContent='⏹ 중지';dot.className='sdot on';txt.textContent='실행 중';}
+  else{btn.className='run-btn start';btn.textContent='▶ AI팀 시작';dot.className='sdot';txt.textContent='대기 중';}
+});
+
+// 시작/중지
+async function toggleRun(){
+  if(running) await window.api.stopAgents();
+  else await window.api.startAgents();
+}
+
+// 페이지 전환
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  el.classList.add('active');
+  if(id==='tasks') loadTasks();
+  if(id==='generated') loadGeneratedTasks();
+  if(id==='reviews') loadReviews();
+  if(id==='candidates') loadApplyCandidates();
+  if(id==='sprints') loadSprints();
+  if(id==='analysis') loadProjectReport();
+  if(id==='patches') loadPatchCandidates();
+  if(id==='vertical') loadVerticalSlicePlan();
+  if(id==='command') loadCommandCenter();
+  if(id==='pmvalidation') loadPmValidation();
+  if(id==='trace') loadTraceability();
+  if(id==='applyqueue') loadApplyQueue();
+  if(id==='knowledge') loadPinnedKnowledge();
+}
+
+// 태스크 로드
+function parseTaskLine(l){
+  const m=l.match(/^- \[([ x\/])\]\s*(🔴|🟡|🟢)?\s*(\[[^\]]+\])?\s*(.*)$/);
+  if(!m) return null;
+  return {state:m[1], pri:m[2]||'🟢', tag:m[3]||'[전체]', text:(m[4]||'').replace(/<!--.*?-->/g,'').trim()};
+}
+
+async function loadTasks(){
+  const content = await window.api.readTodo(config.projectPath);
+  const lines = content.split('\n');
+  const el = document.getElementById('task-list');
+  const taskLines = lines.filter(l=>l.match(/^- \[[ x\/]\]/));
+  if(!taskLines.length){
+    el.innerHTML='<div style="padding:20px;color:#444;text-align:center;font-size:13px">태스크가 없습니다. 아래에서 추가해주세요.</div>';
+    document.getElementById('s-todo').textContent='0';
+    return;
+  }
+  const parsed = taskLines.map(parseTaskLine).filter(Boolean);
+  const todoCount = parsed.filter(t=>t.state===' ').length;
+  const doingCount = parsed.filter(t=>t.state==='/').length;
+  document.getElementById('s-todo').textContent=doingCount ? `${todoCount} / 진행 ${doingCount}` : todoCount;
+  el.innerHTML=taskLines.map(l=>{
+    const t=parseTaskLine(l);
+    if(!t) return '';
+    const done=t.state==='x';
+    const doing=t.state==='/';
+    const pri=t.pri==='🔴'?'red':t.pri==='🟡'?'yellow':done?'done':'green';
+    const label=doing ? `진행 중: ${t.text}` : t.text;
+    return `<div class="task-item ${done?'done-item':''}"><div class="tdot td-${pri}"></div><div class="task-label">${label}</div><div class="ttag">${t.tag}</div></div>`;
+  }).join('');
+}
+
+async function addTask(){
+  const input=document.getElementById('new-task-input');
+  const tag=document.getElementById('new-task-tag').value;
+  const pri=document.getElementById('new-task-pri').value;
+  if(!input.value.trim()) return;
+  const duplicate=await window.api.detectDuplicateTask(config.projectPath, `${pri} ${tag} ${input.value.trim()}`);
+  if(duplicate.duplicate){
+    const hint=document.getElementById('duplicate-hint');
+    if(hint){
+      hint.className='duplicate-hint reject';
+      hint.textContent=`중복 가능성 ${duplicate.similarity}% - 추천: 기존 태스크 활용, 생성 중단`;
+    }
+    return;
+  }
+  const newLine=`\n- [ ] ${pri} ${tag} ${input.value.trim()}`;
+  const current=await window.api.readTodo(config.projectPath);
+  await window.api.saveTodo(config.projectPath, current+newLine);
+  input.value='';
+  const hint=document.getElementById('duplicate-hint');
+  if(hint){hint.className='duplicate-hint';hint.textContent='';}
+  loadTasks();
+}
+
+function checkDuplicateDraft(){
+  clearTimeout(duplicateTimer);
+  duplicateTimer=setTimeout(async()=>{
+    const input=document.getElementById('new-task-input');
+    const hint=document.getElementById('duplicate-hint');
+    if(!input || !hint) return;
+    const text=input.value.trim();
+    if(text.length<4){hint.className='duplicate-hint';hint.textContent='';return;}
+    const tag=document.getElementById('new-task-tag').value;
+    const pri=document.getElementById('new-task-pri').value;
+    const result=await window.api.detectDuplicateTask(config.projectPath, `${pri} ${tag} ${text}`);
+    if(result.duplicate){
+      hint.className='duplicate-hint reject';
+      hint.textContent=`중복 가능성 ${result.similarity}% - 추천: 기존 태스크 활용, 생성 중단`;
+    }else if(result.warning){
+      hint.className='duplicate-hint warn';
+      hint.textContent=`중복 가능성 ${result.similarity}% - 기존 태스크 확인 권장`;
+    }else{
+      hint.className='duplicate-hint';
+      hint.textContent='중복 가능성 낮음';
+    }
+  },250);
+}
+
+function statusClass(value){
+  if(value==='PASS') return 'status-pass';
+  if(value==='REJECT') return 'status-reject';
+  return 'status-review';
+}
+
+async function loadReviews(){
+  const list=document.getElementById('reviews-list');
+  if(!list) return;
+  const rows=await window.api.readReviewSummary(config.projectPath);
+  if(!rows.length){list.innerHTML='<div class="md-view">검수 결과가 없습니다.</div>';return;}
+  list.innerHTML=rows.map(row=>`
+    <div class="data-row">
+      <span class="status-pill ${statusClass(row.decision)}">${row.decision}</span>
+      <strong>${row.score}/100</strong>
+      <div>${row.task}<small>${row.reviewer || row.category} · ${row.file}</small></div>
+      <small>${new Date(row.mtime).toLocaleString('ko-KR')}</small>
+    </div>
+  `).join('');
+}
+
+async function loadApplyCandidates(){
+  const list=document.getElementById('candidates-list');
+  if(!list) return;
+  const rows=await window.api.readApplyCandidates(config.projectPath);
+  if(!rows.length){list.innerHTML='<div class="md-view">적용 후보가 없습니다.</div>';return;}
+  list.innerHTML=rows.map(row=>`
+    <div class="data-row">
+      <strong>${row.category}</strong>
+      <span class="status-pill ${statusClass(row.review)}">${row.review}</span>
+      <div>${row.task}<small>품질 ${row.quality}/100 · ${row.file}</small></div>
+      <div>${row.location || row.targetPath || ''}<small>추천 적용 위치</small></div>
+      <small>${row.mtime ? new Date(row.mtime).toLocaleString('ko-KR') : ''} · dry-run ${row.dryRunOk ? '✅' : '❌'}</small>
+    </div>
+  `).join('');
+}
+
+async function generateCodeCandidate(templateId){
+  const status=document.getElementById('code-candidate-status');
+  if(status) status.textContent=`${templateId} 후보 생성 중...`;
+  try{
+    await window.api.generateCodeCandidate(config.projectPath, templateId);
+    if(status) status.textContent=`✅ ${templateId} 후보 생성 완료 — apply_candidates/code/`;
+  }catch(e){
+    if(status) status.textContent=`❌ 생성 실패: ${e.message}`;
+  }
+  await loadApplyCandidates();
+}
+
+async function generateAllCodeCandidates(){
+  const status=document.getElementById('code-candidate-status');
+  if(status) status.textContent='전체 코드 후보 생성 중...';
+  try{
+    await window.api.generateCodeCandidates(config.projectPath);
+    if(status) status.textContent='✅ 전체 코드 후보 생성 완료 — apply_candidates/code/';
+  }catch(e){
+    if(status) status.textContent=`❌ 생성 실패: ${e.message}`;
+  }
+  await loadApplyCandidates();
+}
+
+async function loadSprints(){
+  const list=document.getElementById('sprints-list');
+  if(!list) return;
+  const rows=await window.api.listSprints(config.projectPath);
+  if(!rows.length){list.innerHTML='<div class="md-view">스프린트가 없습니다.</div>';return;}
+  list.innerHTML=rows.map(row=>`
+    <div class="data-row">
+      <strong>${row.title}</strong>
+      <span class="status-pill ${row.status==='done'?'status-pass':row.status==='active'?'status-review':'status-review'}">${row.status}</span>
+      <div>${row.goal || '목표 없음'}<small>${row.file}</small></div>
+      <small>${new Date(row.mtime).toLocaleString('ko-KR')}</small>
+    </div>
+  `).join('');
+  await loadCurrentSprint();
+}
+
+async function loadCurrentSprint(){
+  const el=document.getElementById('sprint-view');
+  if(!el) return;
+  el.textContent='불러오는 중...';
+  el.textContent=await window.api.readCurrentSprint(config.projectPath) || '현재 스프린트가 없습니다.';
+}
+
+async function createSprint(){
+  await window.api.createSprint(config.projectPath, []);
+  await loadSprints();
+  await loadProjectReport();
+}
+
+async function loadGeneratedTasks(){
+  const el=document.getElementById('generated-view');
+  if(!el) return;
+  el.textContent='불러오는 중...';
+  el.textContent=await window.api.readGeneratedTasks(config.projectPath);
+}
+
+async function approveGeneratedTasks(){
+  const result=await window.api.approveGeneratedTasks(config.projectPath);
+  await loadGeneratedTasks();
+  await loadTasks();
+  alert(`PM 승인 완료: ${result.approvedCount}개가 todo.md에 추가됐습니다.`);
+}
+
+async function loadProjectReport(){
+  const el=document.getElementById('analysis-view');
+  if(!el) return;
+  el.textContent='불러오는 중...';
+  const report=await window.api.readProjectReport(config.projectPath);
+  el.textContent=report || '아직 분석 보고서가 없습니다. 스캔 버튼을 누르세요.';
+}
+
+async function runProjectAnalysis(){
+  const el=document.getElementById('analysis-view');
+  if(el) el.textContent='스캔 중...';
+  const report=await window.api.analyzeProject(config.projectPath);
+  if(el) el.textContent=report;
+  await loadBuildDiagnostics();
+}
+
+async function loadBuildDiagnostics(){
+  const el=document.getElementById('build-view');
+  if(!el) return;
+  const report=await window.api.readBuildDiagnostics(config.projectPath);
+  el.textContent=report || '아직 빌드 로그 분석 보고서가 없습니다.';
+}
+
+async function runBuildDiagnostics(){
+  const el=document.getElementById('build-view');
+  if(el) el.textContent='빌드 로그 분석 중...';
+  const report=await window.api.analyzeBuildLogs(config.projectPath);
+  if(el) el.textContent=report;
+}
+
+async function loadPatchCandidates(){
+  const list=document.getElementById('patch-list');
+  if(!list) return;
+  patchCandidates=await window.api.readPatchCandidates(config.projectPath);
+  if(!patchCandidates.length){list.innerHTML='<div class="md-view">패치 후보가 없습니다.</div>';return;}
+  list.innerHTML=patchCandidates.map((row,i)=>`
+    <div class="data-row wide-row">
+      <strong>${row.category}</strong>
+      <div>${row.target || '대상 미정'}<small>${row.file}</small></div>
+      <span class="status-pill ${row.risk==='높음'?'status-reject':row.risk==='낮음'?'status-pass':'status-review'}">위험도 ${row.risk}</span>
+      <button class="abtn" onclick="showPatchPrompt(${i})">프롬프트</button>
+    </div>
+  `).join('');
+}
+
+async function generatePatchCandidates(){
+  const list=document.getElementById('patch-list');
+  if(list) list.innerHTML='<div class="md-view">패치 후보 생성 중...</div>';
+  await window.api.generatePatchCandidates(config.projectPath);
+  await loadPatchCandidates();
+}
+
+function showPatchPrompt(index){
+  const row=patchCandidates[index];
+  const list=document.getElementById('patch-list');
+  if(!row || !list) return;
+  list.innerHTML=`<div class="md-view">${row.prompt || '프롬프트 없음'}</div>` + list.innerHTML;
+}
+
+async function copyFirstPatchPrompt(){
+  const row=patchCandidates[0];
+  if(!row) return;
+  try{await navigator.clipboard.writeText(row.prompt || '');}catch{}
+  const list=document.getElementById('patch-list');
+  if(list) list.innerHTML=`<div class="md-view">Claude Code 프롬프트 복사 요청 완료\n\n${row.prompt || ''}</div>` + list.innerHTML;
+}
+
+function discardPatchCandidate(){
+  const list=document.getElementById('patch-list');
+  if(list) list.innerHTML='<div class="md-view">후보 폐기: 안전 정책상 파일 삭제 없이 현재 UI 목록에서만 보류 처리했습니다.</div>';
+}
+
+async function loadVerticalSlicePlan(){
+  const el=document.getElementById('vertical-view');
+  const statusEl=document.getElementById('vertical-status-view');
+  if(el){
+    const report=await window.api.readVerticalSlicePlan(config.projectPath);
+    el.textContent=report || '아직 수직 슬라이스 플랜이 없습니다.';
+  }
+  if(statusEl){
+    const status=await window.api.readVerticalSliceStatus(config.projectPath);
+    statusEl.textContent=status || '아직 수직 슬라이스 달성률 보고서가 없습니다.';
+  }
+}
+
+async function generateVerticalSlicePlan(){
+  const el=document.getElementById('vertical-view');
+  const statusEl=document.getElementById('vertical-status-view');
+  if(el) el.textContent='수직 슬라이스 플랜 생성 중...';
+  const report=await window.api.generateVerticalSlicePlan(config.projectPath);
+  if(el) el.textContent=report;
+  if(statusEl) statusEl.textContent=await window.api.generateVerticalSliceStatus(config.projectPath);
+}
+
+async function generateVerticalSliceStatus(){
+  const statusEl=document.getElementById('vertical-status-view');
+  if(statusEl) statusEl.textContent='수직 슬라이스 달성률 분석 중...';
+  const report=await window.api.generateVerticalSliceStatus(config.projectPath);
+  if(statusEl) statusEl.textContent=report || '수직 슬라이스 달성률 보고서가 없습니다.';
+}
+
+async function loadGameState(){
+  const el=document.getElementById('command-game-state');
+  if(!el) return;
+  const report=await window.api.readGameState(config.projectPath);
+  el.textContent=report || '아직 게임 상태 분석 보고서가 없습니다.';
+}
+
+async function loadCommandCenter(){
+  const el=document.getElementById('command-view');
+  if(!el) return;
+  el.textContent='command_center.md 읽는 중...';
+  try{
+    const report=await window.api.readCommandCenter(config.projectPath);
+    el.textContent=report || '아직 지휘 센터 보고서가 없습니다.';
+    await loadGameState();
+    await loadCommandCandidates();
+  }catch(e){
+    el.textContent=`지휘 센터 보고서 읽기 실패: ${e.message || e}`;
+  }
+}
+
+async function generateCommandCenter(){
+  const el=document.getElementById('command-view');
+  if(el) el.textContent='현재 상태 분석 중...';
+  try{
+    await window.api.generateCommandCenter(config.projectPath);
+    const gameState=await window.api.readGameState(config.projectPath);
+    const stateEl=document.getElementById('command-game-state');
+    if(stateEl) stateEl.textContent=gameState || '게임 상태 분석 결과가 없습니다.';
+    const report=await window.api.readCommandCenter(config.projectPath);
+    if(el) el.textContent=report || '보고서를 생성했지만 읽을 내용이 없습니다.';
+    await loadVerticalSlicePlan();
+    await loadCommandCandidates();
+  }catch(e){
+    if(el) el.textContent=`지휘 센터 분석 실패: ${e.message || e}`;
+  }
+}
+
+async function approveCommandCenterTasks(){
+  try{
+    const result=await window.api.approveCommandCenterTasks(config.projectPath);
+    await loadCommandCenter();
+    await loadTasks();
+    alert(`승인 완료: ${result.approvedCount}개 추가, ${result.skippedCount}개 중복 제외`);
+  }catch(e){
+    const el=document.getElementById('command-view');
+    if(el) el.textContent=`지휘 센터 후보 승인 실패: ${e.message || e}`;
+  }
+}
+
+async function loadCommandCandidates(){
+  const box=document.getElementById('command-candidates');
+  if(!box) return;
+  commandCandidates=await window.api.parseCommandRecommendations(config.projectPath);
+  if(!commandCandidates.length){box.innerHTML='<div class="md-view">추천 후보가 없습니다.</div>';return;}
+  box.innerHTML=commandCandidates.map(item=>`
+    <label class="check-row ${item.duplicate?'duplicate':''}">
+      <input type="checkbox" class="cmd-check" value="${item.id}" ${item.duplicate?'disabled':''}>
+      <span>${item.line}<small>중복 가능성 ${item.similarity}%</small></span>
+      <span class="status-pill ${item.duplicate?'status-reject':'status-review'}">${item.status}</span>
+    </label>
+  `).join('');
+}
+
+function selectAllCommandCandidates(checked){
+  document.querySelectorAll('.cmd-check:not(:disabled)').forEach(cb=>cb.checked=checked);
+}
+
+async function approveSelectedCommandTasks(){
+  const ids=Array.from(document.querySelectorAll('.cmd-check:checked')).map(cb=>cb.value);
+  const result=await window.api.approveSelectedCommandTasks(config.projectPath, ids);
+  commandCandidates=result.statuses || [];
+  await loadCommandCandidates();
+  await loadTasks();
+  const el=document.getElementById('command-view');
+  if(el) el.textContent=`선택 승인 결과: 추가됨 ${result.approvedCount}개, 중복 제외 ${result.skippedCount}개\n\n` + (await window.api.readCommandCenter(config.projectPath));
+}
+
+async function createSprintFromCommand(){
+  try{
+    await window.api.createSprint(config.projectPath, []);
+    await loadSprints();
+    await generateCommandCenter();
+  }catch(e){
+    const el=document.getElementById('command-view');
+    if(el) el.textContent=`다음 스프린트 생성 실패: ${e.message || e}`;
+  }
+}
+
+function renderPmValidation(data, report){
+  const summary=document.getElementById('pm-validation-summary');
+  const status=document.getElementById('pm-validation-status');
+  const issues=document.getElementById('pm-validation-issues');
+  const recs=document.getElementById('pm-validation-recommendations');
+  const view=document.getElementById('pm-validation-view');
+  if(view) view.textContent=report || data?.report || 'pm_validation.md가 없습니다.';
+  if(!data){
+    if(summary) summary.innerHTML='';
+    if(status) status.innerHTML='';
+    if(issues) issues.innerHTML='<div class="md-view">아직 PM 판단 검증 데이터가 없습니다.</div>';
+    if(recs) recs.innerHTML='';
+    return;
+  }
+  const trustClass=data.reliability==='통과'?'trust-pass':data.reliability==='주의'?'trust-warn':'trust-fail';
+  const ev=data.evidence || {};
+  if(summary){
+    summary.innerHTML=`
+      <div class="validation-card"><small>PM 판단 신뢰도</small><strong class="${trustClass}">${data.reliability}</strong></div>
+      <div class="validation-card"><small>Actual Implementation Progress</small><strong>${data.progress?.actual ?? 0}%</strong></div>
+      <div class="validation-card"><small>Source / Content</small><strong>${ev.sourceFiles || 0} / ${ev.contentFiles || 0}</strong></div>
+      <div class="validation-card"><small>.umap / .uasset</small><strong>${ev.mapFiles || 0} / ${ev.assetFiles || 0}</strong></div>
+      <div class="validation-card"><small>Reviewer PASS</small><strong>${ev.reviewerPass || 0}</strong></div>
+      <div class="validation-card"><small>QA PASS</small><strong>${ev.qaPass || 0}</strong></div>
+      <div class="validation-card"><small>상태4 항목 수</small><strong>${ev.state4Count || 0}</strong></div>
+      <div class="validation-card"><small>상태4 중 QA PASS 없음</small><strong>${ev.state4MissingQa || 0}</strong></div>
+      <div class="validation-card"><small>상태4 중 Reviewer PASS 없음</small><strong>${ev.state4MissingReviewer || 0}</strong></div>
+      <div class="validation-card"><small>상태4 중 UE 근거 없음</small><strong>${ev.state4MissingUe || 0}</strong></div>
+      <div class="validation-card"><small>상태4 중 Source 없음</small><strong>${ev.state4MissingSource || 0}</strong></div>
+      <div class="validation-card"><small>상태4 중 Content 없음</small><strong>${ev.state4MissingContent || 0}</strong></div>
+      <div class="validation-card"><small>문제 수</small><strong>${(data.issues || []).length}</strong></div>
+      <div class="validation-card"><small>추천 검사</small><strong>${(data.recommendations || []).length}</strong></div>
+    `;
+  }
+  if(status){
+    status.innerHTML=`<table class="validation-table"><thead><tr><th>항목</th><th>단계</th><th>구현 단계</th><th>큐 상태</th><th>후보</th><th>의미</th><th>근거</th></tr></thead><tbody>${(data.statuses || []).map(item=>`
+      <tr>
+        <td>${item.label}</td>
+        <td><span class="level-badge level-${item.level}">${item.level}</span></td>
+        <td>${item.stageLabel || ''}</td>
+        <td>${item.queueStatus ? `<span class="status-pill ${item.queueStatus==='approved'?'status-pass':item.queueStatus==='rejected'?'status-fail':'status-review'}">${item.queueStatus}</span>` : '-'}</td>
+        <td>${item.hasCandidate ? '✅' : '-'}</td>
+        <td>${item.status}</td>
+        <td><small>${item.evidence}</small></td>
+      </tr>
+    `).join('')}</tbody></table>`;
+  }
+  if(issues){
+    issues.innerHTML=(data.issues || []).length
+      ? data.issues.map(item=>`<div class="issue-item ${item.severity==='주의'?'warn':''}">[${item.severity}] ${item.text}</div>`).join('')
+      : '<div class="validation-card"><small>문제 감지</small><strong class="trust-pass">감지된 문제 없음</strong></div>';
+  }
+  if(recs){
+    recs.innerHTML=`<table class="validation-table"><thead><tr><th>추천 태스크</th><th>중복</th><th>반복</th><th>부족 기능 연결</th><th>담당</th></tr></thead><tbody>${(data.recommendations || []).map(item=>`
+      <tr>
+        <td>${item.line}</td>
+        <td>${item.duplicate?'중복':'정상'}</td>
+        <td>${item.repeated?'반복형':'정상'}</td>
+        <td>${item.linked?'연결됨':'약함'}</td>
+        <td>${item.agent}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="5">추천 태스크가 없습니다.</td></tr>'}</tbody></table>`;
+  }
+}
+
+async function loadPmValidation(){
+  const view=document.getElementById('pm-validation-view');
+  if(view) view.textContent='pm_validation.md 읽는 중...';
+  const report=await window.api.readPmValidation(config.projectPath);
+  renderPmValidation(null, report || '아직 PM 판단 검증 보고서가 없습니다. 실행 버튼을 누르세요.');
+}
+
+async function runPmValidation(){
+  const view=document.getElementById('pm-validation-view');
+  if(view) view.textContent='PM 판단 검증 실행 중...';
+  try{
+    const data=await window.api.generatePmValidation(config.projectPath);
+    renderPmValidation(data, data.report);
+  }catch(e){
+    if(view) view.textContent=`PM 판단 검증 실패: ${e.message || e}`;
+  }
+}
+
+async function loadTraceability(){
+  const el=document.getElementById('trace-view');
+  if(!el) return;
+  const report=await window.api.readTraceability(config.projectPath);
+  el.textContent=report || '아직 통합 추적 데이터가 없습니다.';
+}
+
+async function generateTraceability(){
+  const el=document.getElementById('trace-view');
+  if(el) el.textContent='통합 추적 생성 중...';
+  const result=await window.api.generateTraceability(config.projectPath);
+  if(el) el.textContent=result.report || '통합 추적 생성 결과가 없습니다.';
+}
+
+async function loadApplyQueue(){
+  const list=document.getElementById('applyqueue-list');
+  if(!list) return;
+  applyQueueItems=await window.api.readApplyQueue(config.projectPath);
+  if(!applyQueueItems.length){list.innerHTML='<div class="md-view">적용 큐가 비어 있습니다.</div>';return;}
+  list.innerHTML=applyQueueItems.map((row,i)=>`
+    <div class="data-row wide-row">
+      <span class="status-pill ${row.status==='approved'?'status-pass':row.status==='rejected'?'status-fail':'status-review'}">${row.status}</span>
+      <div><strong>추천 적용 위치:</strong> ${row.targetPath||row.target||'<em style="color:#f88">경로 정보 없음</em>'}<small>${row.file}</small></div>
+      <span class="status-pill ${row.hasExisting?'status-review':'status-pass'}">${row.hasExisting?'기존 파일 있음':'신규/미확인'}</span>
+      <small>${row.mtime?new Date(row.mtime).toLocaleString('ko-KR'):''}</small>
+      <button class="abtn" onclick="showApplyQueueDiff(${i})">diff 보기</button>
+    </div>
+  `).join('');
+}
+
+async function registerApplyCandidate(){
+  const result=await window.api.registerApplyCandidate(config.projectPath, '');
+  await loadApplyQueue();
+  const view=document.getElementById('applyqueue-view');
+  if(view) view.textContent=result.registered ? `등록 완료\n${result.file}\n\n${result.diff || ''}` : `등록 실패: ${result.reason}`;
+}
+
+function showApplyQueueDiff(index){
+  const view=document.getElementById('applyqueue-view');
+  const row=applyQueueItems[index];
+  if(view && row) view.textContent=`${row.file}\n\n${row.diff || 'diff 없음'}`;
+}
+
+async function runApplyDryRun(){
+  const item=applyQueueItems[0];
+  const result=await window.api.runApplyDryRun(config.projectPath, item?.file || '');
+  const view=document.getElementById('applyqueue-view');
+  if(view) view.textContent=`${result.message}\nallowRealApply=${result.allowRealApply}\ndryRun=${result.dryRun}\n\n${result.diff || ''}`;
+}
+
+async function approveApplyQueue(){
+  const item=applyQueueItems[0];
+  if(!item) return;
+  const result=await window.api.approveApplyQueue(config.projectPath, item.file);
+  await loadApplyQueue();
+  const view=document.getElementById('applyqueue-view');
+  if(view) view.textContent=`승인 처리: ${result.moved ? result.file : result.reason}`;
+}
+
+async function rejectApplyQueue(){
+  const item=applyQueueItems[0];
+  if(!item) return;
+  const result=await window.api.rejectApplyQueue(config.projectPath, item.file);
+  await loadApplyQueue();
+  const view=document.getElementById('applyqueue-view');
+  if(view) view.textContent=`거절 처리: ${result.moved ? result.file : result.reason}`;
+}
+
+async function loadPinnedKnowledge(){
+  pinnedKnowledge=await window.api.readPinnedKnowledge(config.projectPath);
+  const el=document.getElementById('knowledge-grid');
+  if(!el) return;
+  el.innerHTML=pinnedKnowledge.map((item,i)=>`
+    <div class="knowledge-item ${item.pinned && item.importance>=4 ? 'pinned' : ''}">
+      <div class="knowledge-head">
+        <div class="knowledge-title">${item.label}</div>
+        <label><input type="checkbox" id="know-pin-${i}" ${item.pinned?'checked':''}> pinned</label>
+      </div>
+      <textarea id="know-value-${i}">${item.value||''}</textarea>
+      <div class="knowledge-meta">
+        <span>중요도</span>
+        <input type="number" min="1" max="5" id="know-importance-${i}" value="${item.importance||3}">
+        <span>${item.importance>=4?'항상 프롬프트 포함':'보조 지식'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function savePinnedKnowledge(){
+  const next=pinnedKnowledge.map((item,i)=>({
+    ...item,
+    value:document.getElementById('know-value-'+i)?.value || '',
+    importance:parseInt(document.getElementById('know-importance-'+i)?.value || item.importance || 3),
+    pinned:document.getElementById('know-pin-'+i)?.checked !== false
+  }));
+  pinnedKnowledge=await window.api.savePinnedKnowledge(config.projectPath,next);
+  await loadPinnedKnowledge();
+  alert('Pinned Knowledge가 저장됐습니다.');
+}
+
+// 설정
+async function loadSettings(){
+  config=await window.api.getConfig();
+  document.getElementById('cfg-openai').value=config.openaiKey||'';
+  document.getElementById('cfg-anthropic').value=config.anthropicKey||'';
+  document.getElementById('cfg-path').value=config.projectPath||'E:\\ToribatMagicSchool';
+  document.getElementById('cfg-interval').value=config.intervalSeconds||60;
+  document.getElementById('interval-val').textContent=config.intervalSeconds||60;
+  document.getElementById('cfg-parallel').value=config.maxParallelTasks||4;
+  document.getElementById('parallel-val').textContent=config.maxParallelTasks||4;
+  document.getElementById('cfg-timeout').value=config.claudeTimeoutSeconds||300;
+  document.getElementById('timeout-val').textContent=config.claudeTimeoutSeconds||300;
+  document.getElementById('cfg-allow-apply').checked=config.allowRealApply===true;
+  buildAgentToggles();
+  applyAgentVisibility();
+}
+async function saveSettings(){
+  config.openaiKey=document.getElementById('cfg-openai').value;
+  config.anthropicKey=document.getElementById('cfg-anthropic').value;
+  config.projectPath=document.getElementById('cfg-path').value;
+  config.intervalSeconds=parseInt(document.getElementById('cfg-interval').value);
+  config.maxParallelTasks=parseInt(document.getElementById('cfg-parallel').value);
+  config.claudeTimeoutSeconds=parseInt(document.getElementById('cfg-timeout').value);
+  config.allowRealApply=document.getElementById('cfg-allow-apply').checked===true;
+  config.enabledAgents=getEnabledAgentsFromUI();
+  await window.api.saveConfig(config);
+  alert('저장됐습니다!');
+}
+
+// 초기화
+loadSettings();
+window.api.getStatus().then(s=>{
+  document.getElementById('s-done').textContent=s.completedTasks||0;
+  document.getElementById('s-cycle').textContent=s.cycleCount||0;
+  document.getElementById('s-files').textContent=s.generatedFiles||0;
+});
+</script>
+</body>
+</html>
