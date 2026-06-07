@@ -21,33 +21,49 @@ API 키 없이도 **Mock 모드**로 즉시 동작합니다.
 ## Vercel 배포 (개인 테스트용)
 
 이 저장소는 `webapp/` 하위 디렉토리가 Next.js 앱입니다.  
-Vercel 설정에서 **Root Directory를 반드시 `webapp`으로 지정**해야 합니다.
+`rootDirectory`는 `vercel.json`으로 설정할 수 없으며, **Vercel 대시보드에서만 설정 가능**합니다.
 
-### 방법 A — vercel.json으로 자동 설정 (권장)
+> ℹ️ `vercel.json`의 `rootDirectory`는 Vercel이 지원하지 않는 속성입니다.  
+> Root Directory는 반드시 **Vercel 프로젝트 설정 화면**에서 지정해야 합니다.
 
-저장소 루트에 `vercel.json`이 이미 추가되어 있습니다.
-
-```json
-{ "rootDirectory": "webapp" }
-```
-
-GitHub 저장소를 Vercel에 Import하면 이 파일을 읽어 **자동으로 `webapp/`을 루트**로 인식합니다.  
-별도 설정 없이 Deploy 버튼만 누르면 됩니다.
-
-### 방법 B — Vercel 대시보드 수동 설정
+### Import 시 (처음 배포할 때)
 
 1. [vercel.com](https://vercel.com) → **Add New Project** → GitHub 저장소 선택
 2. **Configure Project** 화면에서 아래처럼 설정:
 
-   | 항목 | 값 |
-   |---|---|
-   | **Root Directory** | `webapp` ← 가장 중요 |
-   | Framework Preset | Next.js (자동 감지) |
-   | Build Command | `npm run build` (기본값) |
-   | Output Directory | `.next` (기본값) |
-   | Install Command | `npm install` (기본값) |
+   | 항목 | 값 | 비고 |
+   |---|---|---|
+   | **Root Directory** | `webapp` | ← **반드시 변경** |
+   | Framework Preset | Next.js | 자동 감지됨 |
+   | Build Command | `npm run build` | 기본값 유지 |
+   | Output Directory | `.next` | 기본값 유지 |
+   | Install Command | `npm install` | 기본값 유지 |
 
 3. **Deploy** 클릭
+
+### 이미 프로젝트가 생성된 경우 (Root Directory 수정)
+
+1. Vercel 대시보드 → 해당 프로젝트 → **Settings → General**
+2. **Root Directory** 항목 찾기
+3. `webapp` 입력 후 **Save**
+4. **Deployments** 탭 → 최근 배포 → **Redeploy**
+
+### 배포 성공 확인
+
+빌드 로그에 아래가 나와야 정상입니다:
+
+```
+Installing dependencies...
+$ npm install
+...
+Building...
+$ npm run build
+...
+▲ Next.js 15.x.x
+✓ Compiled successfully
+```
+
+Electron 관련 로그(`electron`, `electron-builder`)가 나오면 Root Directory 설정이 잘못된 것입니다.
 
 ### 환경변수 설정 (API 키 사용 시)
 
