@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import ImageUploader from '@/components/ImageUploader';
 import ProgressIndicator from '@/components/ProgressIndicator';
@@ -37,6 +37,15 @@ export default function Home() {
   const [statusText, setStatusText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [viewerError, setViewerError] = useState<string | null>(null);
+  const [providerName, setProviderName] = useState<string | null>(null);
+
+  // 앱 시작 시 현재 Provider 확인
+  useEffect(() => {
+    fetch('/api/status')
+      .then(r => r.json())
+      .then((d: { provider?: string }) => setProviderName(d.provider ?? 'unknown'))
+      .catch(() => setProviderName('unknown'));
+  }, []);
 
   // 중복 요청 방지용 ref
   const isGeneratingRef = useRef(false);
@@ -163,7 +172,7 @@ export default function Home() {
       </header>
 
       {/* 메인 콘텐츠 */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative min-h-0">
 
         {/* ── 업로드 / 준비 화면 ─────────────────────────── */}
         {(state === 'idle' || state === 'ready') && (
@@ -287,6 +296,33 @@ export default function Home() {
           </div>
         )}
       </div>
+      {/* ── 하단 상태 표시줄 ─────────────────────────────── */}
+      <footer className="flex-shrink-0 flex items-center justify-between px-4 py-1.5 border-t border-white/5">
+        <ProviderBadge name={providerName} />
+        <span className="text-xs text-gray-700">개인용</span>
+      </footer>
     </main>
+  );
+}
+
+// ─── Provider 배지 ────────────────────────────────────────────────
+function ProviderBadge({ name }: { name: string | null }) {
+  if (name === null) {
+    return <span className="text-xs text-gray-800">모드 확인 중...</span>;
+  }
+
+  const isMock = name === 'mock';
+  const label  = isMock ? 'Mock' : name.charAt(0).toUpperCase() + name.slice(1);
+
+  return (
+    <span className="text-xs text-gray-600 flex items-center gap-1.5">
+      현재 모드:{' '}
+      <span
+        className={`font-medium ${isMock ? 'text-amber-600' : 'text-emerald-500'}`}
+        title={isMock ? 'API 키 없음 — sample.glb 반환' : `${name} API 사용 중`}
+      >
+        {label} Provider
+      </span>
+    </span>
   );
 }
