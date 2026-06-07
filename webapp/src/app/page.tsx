@@ -36,34 +36,43 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [viewerError, setViewerError] = useState<string | null>(null);
+
+  // 중복 요청 방지용 ref
+  const isGeneratingRef = useRef(false);
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const statusTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const clearTimers = () => {
+    if (progressTimerRef.current) { clearInterval(progressTimerRef.current); progressTimerRef.current = null; }
+    if (statusTimerRef.current)  { clearInterval(statusTimerRef.current);  statusTimerRef.current = null; }
+  };
+
   const handleImageSelect = useCallback((file: File) => {
     setImageFile(file);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImagePreview(URL.createObjectURL(file));
     setState('ready');
     setModelUrl(null);
     setError(null);
-  }, []);
+    setViewerError(null);
+  }, [imagePreview]);
 
   const handleGenerate = async () => {
-    if (!imageFile) return;
+    if (!imageFile || isGeneratingRef.current) return;
 
+    isGeneratingRef.current = true;
     setState('generating');
     setProgress(0);
     setStatusText(STATUS_MESSAGES[0]);
     setError(null);
+    setViewerError(null);
 
-    // 진행률 애니메이션
+    // 진행률 / 상태 메시지 타이머
     let msgIdx = 0;
     progressTimerRef.current = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 88) return prev;
-        return prev + Math.random() * 4 + 1;
-      });
+      setProgress(prev => (prev >= 88 ? prev : prev + Math.random() * 4 + 1));
     }, 400);
-
     statusTimerRef.current = setInterval(() => {
       msgIdx = (msgIdx + 1) % STATUS_MESSAGES.length;
       setStatusText(STATUS_MESSAGES[msgIdx]);
@@ -73,15 +82,14 @@ export default function Home() {
       const formData = new FormData();
       formData.append('image', imageFile);
 
-      const res = await fetch('/api/generate3d', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
+      const res = await fetch('/api/generate3d', { method: 'POST', body: formData });
+      const data: { status?: string; modelUrl?: string; error?: string } = await res.json();
 
       if (!res.ok || data.error) {
-        throw new Error(data.error || '생성에 실패했습니다.');
+        throw new Error(data.error || `서버 오류 (${res.status})`);
+      }
+      if (!data.modelUrl) {
+        throw new Error('모델 URL을 받지 못했습니다.');
       }
 
       setProgress(100);
@@ -92,20 +100,28 @@ export default function Home() {
       setError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.');
       setState('ready');
     } finally {
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-      if (statusTimerRef.current) clearInterval(statusTimerRef.current);
+      clearTimers();
+      isGeneratingRef.current = false;
     }
   };
+
+  const handleViewerError = useCallback((message: string) => {
+    setViewerError(message);
+  }, []);
 
   const handleDownload = () => {
     if (!modelUrl) return;
     const a = document.createElement('a');
     a.href = modelUrl;
     a.download = 'model.glb';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
   };
 
   const handleReset = () => {
+    if (isGeneratingRef.current) return; // 생성 중에는 리셋 차단
+    clearTimers();
     setState('idle');
     setImageFile(null);
     if (imagePreview) URL.revokeObjectURL(imagePreview);
@@ -114,7 +130,10 @@ export default function Home() {
     setProgress(0);
     setStatusText('');
     setError(null);
+    setViewerError(null);
   };
+
+  const isGenerating = state === 'generating';
 
   return (
     <main className="flex flex-col h-screen bg-[#0a0a0f] select-none">
@@ -126,22 +145,29 @@ export default function Home() {
           </div>
           <h1 className="text-white font-semibold text-base">이미지 → 3D 변환기</h1>
         </div>
+
+        {/* 생성 중에는 다시 시작 비활성화 */}
         {state !== 'idle' && (
           <button
             onClick={handleReset}
-            className="text-xs text-gray-400 hover:text-white transition-colors px-2 py-1 rounded-md hover:bg-white/10"
+            disabled={isGenerating}
+            className={`text-xs px-2 py-1 rounded-md transition-colors ${
+              isGenerating
+                ? 'text-gray-600 cursor-not-allowed'
+                : 'text-gray-400 hover:text-white hover:bg-white/10'
+            }`}
           >
             다시 시작
           </button>
         )}
       </header>
 
-      {/* 메인 콘텐츠 영역 */}
+      {/* 메인 콘텐츠 */}
       <div className="flex-1 overflow-hidden relative">
-        {/* 업로드 화면 */}
-        {(state === 'idle' || state === 'ready') && !modelUrl && (
+
+        {/* ── 업로드 / 준비 화면 ─────────────────────────── */}
+        {(state === 'idle' || state === 'ready') && (
           <div className="flex flex-col h-full">
-            {/* 이미지 미리보기 or 업로더 */}
             <div className="flex-1 p-4 flex flex-col min-h-0">
               {imagePreview ? (
                 <div className="flex-1 relative rounded-2xl overflow-hidden bg-[#14141f] border border-white/10">
@@ -153,7 +179,8 @@ export default function Home() {
                   />
                   <button
                     onClick={handleReset}
-                    className="absolute top-3 right-3 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+                    className="absolute top-3 right-3 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80 transition-colors text-lg leading-none"
+                    aria-label="이미지 제거"
                   >
                     ×
                   </button>
@@ -163,18 +190,23 @@ export default function Home() {
               )}
             </div>
 
-            {/* 하단 액션 영역 */}
             <div className="px-4 pb-6 flex-shrink-0 space-y-3">
+              {/* API / 네트워크 에러 */}
               {error && (
-                <p className="text-red-400 text-sm text-center bg-red-400/10 rounded-xl py-2 px-3">
-                  {error}
-                </p>
+                <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+                  <span className="text-red-400 shrink-0">⚠</span>
+                  <p className="text-red-400 text-sm">{error}</p>
+                </div>
               )}
+
               {state === 'ready' && (
                 <>
                   <button
                     onClick={handleGenerate}
-                    className="w-full py-4 bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white font-semibold rounded-2xl transition-colors text-base"
+                    disabled={isGenerating}
+                    className="w-full py-4 bg-violet-600 hover:bg-violet-700 active:bg-violet-800
+                               disabled:opacity-60 disabled:cursor-not-allowed
+                               text-white font-semibold rounded-2xl transition-colors text-base"
                   >
                     ✨ 3D 생성하기
                   </button>
@@ -183,6 +215,7 @@ export default function Home() {
                   </p>
                 </>
               )}
+
               {state === 'idle' && (
                 <p className="text-center text-xs text-gray-500">
                   JPG, PNG, WEBP 지원 · 최대 10MB
@@ -192,12 +225,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* 생성 중 화면 */}
+        {/* ── 생성 중 화면 ────────────────────────────────── */}
         {state === 'generating' && (
           <div className="flex flex-col h-full">
             <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
               {imagePreview && (
-                <div className="w-32 h-32 rounded-2xl overflow-hidden border border-white/10">
+                <div className="w-28 h-28 rounded-2xl overflow-hidden border border-white/10 flex-shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={imagePreview} alt="분석 중인 이미지" className="w-full h-full object-cover" />
                 </div>
@@ -207,22 +240,29 @@ export default function Home() {
           </div>
         )}
 
-        {/* 3D 뷰어 화면 */}
+        {/* ── 3D 뷰어 화면 ────────────────────────────────── */}
         {state === 'done' && modelUrl && (
           <div className="flex flex-col h-full">
             {/* 3D 뷰어 */}
             <div className="flex-1 min-h-0 m-3 rounded-2xl overflow-hidden border border-white/10">
-              <ModelViewer url={modelUrl} />
+              <ModelViewer url={modelUrl} onError={handleViewerError} />
             </div>
 
-            {/* 조작 안내 */}
-            <div className="text-center py-1">
-              <p className="text-xs text-gray-500">손가락으로 회전 · 두 손가락으로 확대/축소</p>
-            </div>
+            {/* 뷰어 에러 배너 */}
+            {viewerError && (
+              <p className="text-center text-xs text-red-400 px-4 py-1">
+                뷰어 오류: {viewerError}
+              </p>
+            )}
+
+            {!viewerError && (
+              <div className="text-center py-1">
+                <p className="text-xs text-gray-500">손가락으로 회전 · 두 손가락으로 확대/축소</p>
+              </div>
+            )}
 
             {/* 하단 버튼 */}
             <div className="px-4 pb-6 pt-2 flex-shrink-0 flex gap-3">
-              {/* 원본 이미지 썸네일 */}
               {imagePreview && (
                 <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/20 flex-shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
