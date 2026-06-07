@@ -1,2 +1,11 @@
 node_modules/
 dist/
+
+# API 키, 개인 설정 — 절대 커밋하지 않음
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+*.key
+*.secret
