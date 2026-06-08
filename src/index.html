@@ -65,6 +65,61 @@ body{font-family:-apple-system,'Malgun Gothic',sans-serif;background:#0d0d0f;col
 .pfill{height:100%;border-radius:2px;transition:width 0.6s ease;}
 .pf-green{background:#4caf7d;} .pf-blue{background:#5b9cf6;} .pf-gray{background:#333;}
 
+/* Vault */
+.vault-tab{flex:1;overflow-y:auto;}
+.vault-note-item{background:#18181c;border:1px solid #1e1e22;border-radius:8px;padding:10px 14px;margin-bottom:8px;cursor:pointer;transition:border-color 0.15s;}
+.vault-note-item:hover{border-color:#a78bfa;}
+.vault-note-title{font-size:13px;font-weight:600;color:#e8e6df;margin-bottom:4px;}
+.vault-note-meta{font-size:11px;color:#555;display:flex;gap:10px;flex-wrap:wrap;}
+.vault-tag{background:#1a0d2e;color:#a78bfa;border-radius:4px;padding:1px 6px;font-size:11px;}
+.vault-snippet{font-size:12px;color:#888;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vault-warn{color:#f0a940;font-size:12px;margin-top:4px;}
+.btn-primary{background:#1a0d2e;color:#a78bfa;border:1px solid #3d2060;}
+.btn-primary:hover{background:#250f40;}
+/* V75/V78: 3D Inspector */
+.insp-wrap{display:grid;grid-template-columns:210px 1fr 255px;gap:10px;height:calc(100vh - 180px);}
+.insp-file-panel{background:#111114;border:1px solid #1e1e22;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
+.insp-file-header{padding:10px 12px;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #1e1e22;flex-shrink:0;}
+.insp-file-list{flex:1;overflow-y:auto;padding:6px;}
+.insp-file-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;transition:background 0.12s;font-size:12px;}
+.insp-file-item:hover{background:#1a1a1f;}
+.insp-file-ext{font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;flex-shrink:0;}
+.insp-file-ext.glb{background:#0f2a1a;color:#4caf7d;}
+.insp-file-ext.gltf{background:#0f2a1a;color:#4caf7d;}
+.insp-file-ext.obj{background:#1a1a0f;color:#c8b04a;}
+.insp-file-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c8c6bf;}
+.insp-file-size{font-size:10px;color:#555;flex-shrink:0;}
+.insp-view-panel{background:#111114;border:1px solid #1e1e22;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
+.insp-toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1e1e22;flex-shrink:0;flex-wrap:wrap;}
+.insp-toolbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.insp-poly{font-size:12px;color:#666;}
+.insp-info{font-size:11px;color:#555;padding:4px 12px;border-top:1px solid #1a1a1f;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.insp-canvas-wrap{flex:1;position:relative;overflow:hidden;}
+#inspector-canvas{display:block;width:100%;height:100%;}
+/* V78: Verdict Panel */
+.insp-judge-panel{background:#111114;border:1px solid #1e1e22;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
+.insp-judge-header{padding:9px 12px;font-size:12px;font-weight:600;color:#888;border-bottom:1px solid #1e1e22;flex-shrink:0;}
+.insp-judge-body{flex:1;overflow-y:auto;padding:9px;display:flex;flex-direction:column;gap:7px;}
+.insp-verdict-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.ivbtn{padding:5px 2px;font-size:11px;font-weight:700;border:1px solid #2a2a2a;border-radius:6px;cursor:pointer;background:#0d0d10;color:#555;transition:all 0.12s;}
+.ivbtn.v-pass{border-color:#1d4a1d;color:#4caf7d;}.ivbtn.v-pass.active,.ivbtn.v-pass:hover{background:#0d2b0d;}
+.ivbtn.v-review{border-color:#4a3a00;color:#c8a84a;}.ivbtn.v-review.active,.ivbtn.v-review:hover{background:#2b2200;}
+.ivbtn.v-reject{border-color:#4a1d1d;color:#cf4a4a;}.ivbtn.v-reject.active,.ivbtn.v-reject:hover{background:#2b0d0d;}
+.insp-stat-grid{background:#0d0d10;border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:3px;}
+.insp-stat-row{display:flex;justify-content:space-between;font-size:11px;}
+.insp-stat-lbl{color:#444;}.insp-stat-val{color:#777;}
+.insp-suggest-badge{font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;}
+.insp-suggest-badge.PASS{background:#0d2b0d;color:#4caf7d;}
+.insp-suggest-badge.REVIEW{background:#2b2200;color:#c8a84a;}
+.insp-suggest-badge.REJECT{background:#2b0d0d;color:#cf4a4a;}
+.insp-recent-hdr{padding:6px 10px;font-size:11px;font-weight:600;color:#555;border-top:1px solid #1e1e22;flex-shrink:0;}
+.insp-recent-body{height:100px;overflow-y:auto;padding:3px 6px;flex-shrink:0;}
+.insp-recent-item{display:flex;align-items:center;gap:4px;padding:3px 5px;border-radius:4px;cursor:pointer;font-size:11px;color:#555;}
+.insp-recent-item:hover{background:#1a1a1f;}
+.ivbadge{font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;flex-shrink:0;}
+.ivbadge.PASS{background:#0d2b0d;color:#4caf7d;}
+.ivbadge.REVIEW{background:#2b2200;color:#c8a84a;}
+.ivbadge.REJECT{background:#2b0d0d;color:#cf4a4a;}
 /* Log */
 .log-wrap{background:#0a0a0c;border:1px solid #1e1e22;border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;}
 .log-inner{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px;font-family:'Consolas','D2Coding',monospace;}
@@ -198,6 +253,10 @@ body{font-family:-apple-system,'Malgun Gothic',sans-serif;background:#0d0d0f;col
     <div class="nav-item" onclick="showPage('trace',this)"><span class="icon">🧷</span>통합 추적</div>
     <div class="nav-item" onclick="showPage('applyqueue',this)"><span class="icon">🛡️</span>적용 큐</div>
     <div class="nav-item" onclick="showPage('knowledge',this)"><span class="icon">📌</span>공유 지식</div>
+    <div class="nav-item" onclick="showPage('asset3d',this)"><span class="icon">🧊</span>3D 에셋</div>
+    <div class="nav-item" onclick="showPage('existing',this)"><span class="icon">🔍</span>기존 프로젝트 분석</div>
+    <div class="nav-item" onclick="showPage('vault',this)"><span class="icon">🧠</span>Vault 지식</div>
+    <div class="nav-item" onclick="showPage('3dinspector',this)"><span class="icon">🔭</span>3D Inspector</div>
     <div class="nav-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span>설정</div>
     <div class="sidebar-bottom">
       <button class="run-btn start" id="run-btn" onclick="toggleRun()">▶ AI팀 시작</button>
@@ -411,11 +470,24 @@ body{font-family:-apple-system,'Malgun Gothic',sans-serif;background:#0d0d0f;col
           <button class="abtn primary" onclick="registerApplyCandidate()">적용 후보 등록</button>
           <button class="abtn" onclick="loadApplyQueue()">새로고침</button>
           <button class="abtn" onclick="runApplyDryRun()">dry-run 실행</button>
+          <button class="abtn" onclick="createApplyReview()">Apply Review</button>
+          <button class="abtn" onclick="generateApplyReviewReport()">리뷰 보고서</button>
           <button class="abtn" onclick="approveApplyQueue()">승인</button>
           <button class="abtn" onclick="rejectApplyQueue()">거절</button>
         </div>
         <div class="data-list" id="applyqueue-list"></div>
         <div class="md-view" id="applyqueue-view" style="margin-top:12px">diff를 선택하거나 dry-run을 실행하세요.</div>
+        <div class="section-label" style="margin-top:18px;font-size:13px;color:#aaa">UE5 Import Manifest</div>
+        <div class="tool-actions">
+          <button class="abtn" onclick="refreshUE5ImportManifest()">Approved 후보 새로고침</button>
+          <button class="abtn" onclick="createSelectedUE5ImportManifest()">선택 후보 Manifest 생성</button>
+          <button class="abtn primary" onclick="createAllUE5ImportManifests()">Approved 전체 Manifest 생성</button>
+          <button class="abtn" onclick="generateUE5ImportManifestReport()">Manifest Report 생성</button>
+          <button class="abtn" onclick="viewUE5ImportManifestReport()">Report 보기</button>
+        </div>
+        <div class="validation-grid" id="ue5manifest-summary"></div>
+        <div class="data-list" id="ue5manifest-list"></div>
+        <div class="md-view" id="ue5manifest-view" style="margin-top:12px">UE5 Import Manifest는 실제 Content 복사 없이 명세서만 생성합니다.</div>
       </div>
     </div>
 
@@ -431,6 +503,361 @@ body{font-family:-apple-system,'Malgun Gothic',sans-serif;background:#0d0d0f;col
       </div>
     </div>
 
+    <!-- 3D 에셋 파이프라인 (V67-V72) -->
+    <div class="page" id="page-asset3d">
+      <div class="section-header"><h2>🧊 3D 에셋 파이프라인</h2><span class="section-sub">이미지 → 에셋 분해 → 3D Job → UE5 후보</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+        <button class="btn" onclick="window.api.openAssetImagesFolder(config.projectPath)">📁 이미지 폴더 열기</button>
+        <button class="btn" onclick="doRefreshAssetSummary()">🔄 목록 새로고침</button>
+        <button class="btn" onclick="doIntakeImages()">📥 Intake 생성</button>
+        <button class="btn btn-secondary" onclick="doDecompositionPlan()">✂️ 분해 계획 생성</button>
+        <button class="btn btn-secondary" onclick="doGenerateJobs()">⚙️ 3D 작업 생성</button>
+        <button class="btn btn-warning" onclick="doImageTo3DDryRun()">🚀 Image-to-3D dry-run</button>
+        <button class="btn btn-secondary" onclick="doQualityGate()">🛡️ 품질 검사</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
+        <div class="stat-card"><div class="stat-num" id="a3d-images">—</div><div class="stat-label">등록 이미지</div></div>
+        <div class="stat-card"><div class="stat-num" id="a3d-intakes">—</div><div class="stat-label">Intake 수</div></div>
+        <div class="stat-card"><div class="stat-num" id="a3d-plans">—</div><div class="stat-label">분해 계획</div></div>
+        <div class="stat-card"><div class="stat-num" id="a3d-jobs">—</div><div class="stat-label">3D Job</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
+        <div class="stat-card"><div class="stat-num" id="a3d-generated">—</div><div class="stat-label">생성된 에셋</div></div>
+        <div class="stat-card"><div class="stat-num" id="a3d-pass" style="color:#4caf7d">—</div><div class="stat-label">PASS</div></div>
+        <div class="stat-card"><div class="stat-num" id="a3d-review" style="color:#f0a940">—</div><div class="stat-label">REVIEW</div></div>
+        <div class="stat-card"><div class="stat-num" id="a3d-reject" style="color:#e05252">—</div><div class="stat-label">REJECT</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:18px">
+        <div class="stat-card"><div class="stat-num" id="a3d-candidates">—</div><div class="stat-label">apply 후보 (world)</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#888;font-size:13px" id="a3d-status">이미지를 asset_inputs/images/ 에 넣고 dry-run을 실행하세요</div><div class="stat-label">상태</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 품질 검사 보고서</div>
+        <pre id="a3d-output" style="font-size:12px;max-height:400px;overflow:auto;white-space:pre-wrap;color:#ccc">품질 검사 보고서가 없습니다. dry-run 또는 품질 검사를 실행하세요.</pre>
+      </div>
+
+      <!-- V76: 3D Generator -->
+      <div class="card" style="margin-top:18px">
+        <div class="card-title">🤖 3D Generator <span id="gen-enabled-badge" style="font-size:11px;padding:2px 8px;border-radius:10px;margin-left:8px;background:#1a1a0f;color:#888">비활성화</span></div>
+        <!-- 상태 그리드 -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0">
+          <div class="stat-card"><div class="stat-num" id="gen-provider" style="font-size:14px">none</div><div class="stat-label">Provider</div></div>
+          <div class="stat-card"><div class="stat-num" id="gen-dry-run" style="font-size:14px;color:#f0a940">ON</div><div class="stat-label">Dry-Run</div></div>
+          <div class="stat-card"><div class="stat-num" id="gen-pending">—</div><div class="stat-label">Pending Jobs</div></div>
+          <div class="stat-card"><div class="stat-num" id="gen-done" style="color:#4caf7d">—</div><div class="stat-label">Done</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
+          <div class="stat-card"><div class="stat-num" id="gen-failed" style="color:#e05252">—</div><div class="stat-label">Failed</div></div>
+          <div class="stat-card"><div class="stat-num" id="gen-assets">—</div><div class="stat-label">생성된 에셋</div></div>
+          <div class="stat-card" style="grid-column:span 2"><div class="stat-num" id="gen-can-run" style="font-size:12px;color:#888">—</div><div class="stat-label">실행 가능 여부</div></div>
+        </div>
+        <!-- Provider 설정 상태 -->
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;color:#666;margin-bottom:6px;font-weight:600">Provider 설정 상태</div>
+          <div id="gen-provider-list" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:12px"></div>
+        </div>
+        <!-- 버튼 -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="btn" onclick="doGenStatus()">🔄 상태 확인</button>
+          <button class="btn" onclick="doGenLoadConfig()">⚙️ 설정 파일 로드</button>
+          <button class="btn" onclick="doGenListPendingJobs()">📋 Pending Job 목록</button>
+          <button class="btn btn-secondary" onclick="doGenDryRun()">🔍 dry-run 명령 생성</button>
+          <button class="btn btn-warning" onclick="doDetectAssets()">🔎 결과물 감지</button>
+          <button class="btn" onclick="showPage('3dinspector',document.querySelector('[onclick*=3dinspector]'))">🔭 3D Inspector 열기</button>
+          <button class="btn btn-warning" id="btn-gen-run" onclick="doGenRun()" disabled title="enabled=true + dryRun=false + provider 설정 완료 시 활성화">▶ 로컬 생성 실행</button>
+        </div>
+        <!-- V77: 환경 점검 패널 -->
+        <details style="margin-bottom:12px">
+          <summary style="cursor:pointer;font-size:12px;color:#888;font-weight:600;padding:6px 0">🖥️ 환경 점검 <span id="env-overall-badge" style="font-size:11px;padding:1px 7px;border-radius:8px;margin-left:6px;background:#1a1a1f;color:#666">미확인</span> <span id="readiness-badge" style="display:none;font-size:11px;padding:2px 8px;border-radius:8px;margin-left:4px"></span></summary>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <button class="btn" onclick="doEnvCheck()">🔍 환경 점검</button>
+            <button class="btn" onclick="doGpuCheck()">🎮 GPU 점검</button>
+            <button class="btn" onclick="doProviderCompat()">🔌 Provider 호환성</button>
+            <button class="btn" onclick="doInstallCheck()">📦 설치 감지</button>
+            <button class="btn btn-warning" onclick="doPreflight()">🚀 사전 점검 실행</button>
+          </div>
+          <div id="env-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:11px"></div>
+        </details>
+        <!-- V77: Config Editor -->
+        <details style="margin-bottom:12px">
+          <summary style="cursor:pointer;font-size:12px;color:#888;font-weight:600;padding:6px 0">⚙️ Config Editor</summary>
+          <div style="margin-top:8px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:12px">
+            <label style="display:flex;align-items:center;gap:8px"><span style="color:#888;width:80px;flex-shrink:0">enabled</span>
+              <select id="cfg-gen-enabled" style="flex:1;background:#18181c;color:#e8e6df;border:1px solid #1e1e22;border-radius:4px;padding:3px 6px">
+                <option value="false">false (비활성화)</option><option value="true">true (활성화)</option>
+              </select></label>
+            <label style="display:flex;align-items:center;gap:8px"><span style="color:#888;width:80px;flex-shrink:0">dryRun</span>
+              <select id="cfg-gen-dryrun" style="flex:1;background:#18181c;color:#e8e6df;border:1px solid #1e1e22;border-radius:4px;padding:3px 6px">
+                <option value="true">true (dry-run)</option><option value="false">false (실행)</option>
+              </select></label>
+            <label style="display:flex;align-items:center;gap:8px"><span style="color:#888;width:80px;flex-shrink:0">provider</span>
+              <select id="cfg-gen-provider" style="flex:1;background:#18181c;color:#e8e6df;border:1px solid #1e1e22;border-radius:4px;padding:3px 6px">
+                <option value="none">none</option><option value="trellis">trellis</option><option value="hunyuan3d">hunyuan3d</option><option value="stableFast3D">stableFast3D</option><option value="blender">blender</option>
+              </select></label>
+            <label style="display:flex;align-items:center;gap:8px"><span style="color:#888;width:80px;flex-shrink:0">timeout(분)</span>
+              <input id="cfg-gen-timeout" type="number" min="1" max="1440" value="120" style="flex:1;background:#18181c;color:#e8e6df;border:1px solid #1e1e22;border-radius:4px;padding:3px 6px"></label>
+            <label style="display:flex;align-items:center;gap:8px;grid-column:span 2"><span style="color:#888;width:80px;flex-shrink:0">workingDir</span>
+              <input id="cfg-gen-workdir" type="text" placeholder="(선택한 provider의 설치 경로)" style="flex:1;background:#18181c;color:#e8e6df;border:1px solid #1e1e22;border-radius:4px;padding:3px 6px"></label>
+            <label style="display:flex;align-items:center;gap:8px;grid-column:span 2"><span style="color:#888;width:80px;flex-shrink:0">outputDir</span>
+              <input id="cfg-gen-outdir" type="text" placeholder="D:\ToribatMagicSchool\generated_assets" style="flex:1;background:#18181c;color:#e8e6df;border:1px solid #1e1e22;border-radius:4px;padding:3px 6px"></label>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-primary" onclick="doSaveGenConfig()">💾 저장</button>
+            <button class="btn" onclick="doLoadGenConfigToUI()">🔄 새로고침</button>
+            <button class="btn btn-secondary" onclick="doVerifyGenConfig()">✅ 설정 검증</button>
+          </div>
+        </details>
+        <!-- 출력 -->
+        <div style="font-size:11px;color:#666;margin-bottom:4px">출력</div>
+        <pre id="gen-output" style="font-size:12px;max-height:300px;overflow:auto;white-space:pre-wrap;color:#ccc;background:#0a0a0c;border-radius:6px;padding:10px">상태 확인 버튼을 눌러 Generator 상태를 로드하세요.</pre>
+      </div>
+    </div>
+
+    <!-- 기존 프로젝트 분석 (V62-V65) -->
+    <div class="page" id="page-existing">
+      <div class="section-header"><h2>🔍 기존 프로젝트 분석</h2><span class="section-sub">UE5 소스 스캔 → 기존 시스템 인식 → 안전한 확장</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+        <button class="btn" onclick="doScanExistingProject()">📡 프로젝트 스캔</button>
+        <button class="btn" onclick="doReadInventory()">📄 인벤토리 보기</button>
+        <button class="btn btn-secondary" onclick="doFindImplementation()">🔎 Source 분석</button>
+        <button class="btn btn-secondary" onclick="doValidateCandidate()">🛡️ 중복 검사</button>
+        <button class="btn btn-warning" onclick="doGenerateExtension()">🔧 확장 후보 생성</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
+        <div class="stat-card"><div class="stat-num" id="ep-class-count">—</div><div class="stat-label">클래스 수</div></div>
+        <div class="stat-card"><div class="stat-num" id="ep-system-count">—</div><div class="stat-label">구현된 시스템</div></div>
+        <div class="stat-card"><div class="stat-num" id="ep-map-count">—</div><div class="stat-label">맵 파일</div></div>
+        <div class="stat-card"><div class="stat-num" id="ep-file-count">—</div><div class="stat-label">소스 파일</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+        <div class="card">
+          <div class="card-title" style="color:#4caf7d">✅ 구현된 시스템</div>
+          <div id="ep-implemented-list" style="font-size:13px;line-height:2">—</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:#f0a940">⚠️ 미구현 시스템 (후보)</div>
+          <div id="ep-missing-list" style="font-size:13px;line-height:2">—</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 상세 출력</div>
+        <pre id="ep-output" style="font-size:12px;max-height:400px;overflow:auto;white-space:pre-wrap;color:#ccc">스캔 버튼을 눌러 프로젝트를 분석하세요.</pre>
+      </div>
+    </div>
+
+    <!-- Vault 지식 (V73) -->
+    <div class="page" id="page-vault">
+      <div class="section-header"><h2>🧠 Vault 지식</h2><span class="section-sub">Obsidian Vault 연동 — 장기 기억 저장소</span></div>
+      <!-- 상태 바 -->
+      <div id="vault-warn-bar" style="display:none;background:#2a1a08;border:1px solid #7a4a10;border-radius:8px;padding:10px 14px;margin-bottom:14px;color:#f0a940;font-size:13px"></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+        <div class="stat-card"><div class="stat-num" id="v-note-count">—</div><div class="stat-label">노트 수</div></div>
+        <div class="stat-card"><div class="stat-num" id="v-folder-count">—</div><div class="stat-label">폴더 수</div></div>
+        <div class="stat-card"><div class="stat-num" id="v-tag-count">—</div><div class="stat-label">태그 수</div></div>
+        <div class="stat-card"><div class="stat-num" id="v-link-count">—</div><div class="stat-label">링크 수</div></div>
+      </div>
+      <!-- 탭 -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn" onclick="doVaultStatus()">🔄 상태 새로고침</button>
+        <button class="btn" onclick="showVaultTab('search')">🔎 노트 검색</button>
+        <button class="btn btn-secondary" onclick="showVaultTab('create')">✏️ 노트 생성</button>
+        <button class="btn btn-secondary" onclick="showVaultTab('recent')">🕒 최근 수정</button>
+        <button class="btn btn-secondary" onclick="showVaultTab('related')">🔗 관련 노트</button>
+        <button class="btn btn-secondary" onclick="showVaultTab('summary')">📊 요약</button>
+        <button class="btn btn-secondary" onclick="showVaultTab('memory')">🧠 자동 기억</button>
+        <button class="btn btn-secondary" onclick="showVaultTab('decisions')">📌 결정 이력</button>
+        <button class="btn btn-secondary" onclick="showVaultTab('context')">🔍 Knowledge Context</button>
+      </div>
+      <!-- 검색 패널 -->
+      <div id="vault-tab-search" class="vault-tab">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input id="vault-search-input" type="text" placeholder="제목 / 내용 / 태그 검색..." style="flex:1;background:#18181c;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit" onkeydown="if(event.key==='Enter')doVaultSearch()"/>
+          <button class="btn" onclick="doVaultSearch()">검색</button>
+        </div>
+        <div id="vault-search-results" style="font-size:13px;color:#666">검색어를 입력하세요.</div>
+      </div>
+      <!-- 생성 패널 -->
+      <div id="vault-tab-create" class="vault-tab" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">폴더 (기본: Knowledge)</label>
+            <select id="vault-create-folder" style="width:100%;background:#18181c;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:8px;font-size:13px;font-family:inherit">
+              <option value="Knowledge">Knowledge</option>
+              <option value="Projects">Projects</option>
+              <option value="Worldbuilding">Worldbuilding</option>
+              <option value="UE5">UE5</option>
+              <option value="3DAssets">3DAssets</option>
+              <option value="Tasks">Tasks</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">제목</label>
+            <input id="vault-create-title" type="text" placeholder="노트 제목" style="width:100%;background:#18181c;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:8px;font-size:13px;font-family:inherit"/>
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">태그 (쉼표 구분)</label>
+          <input id="vault-create-tags" type="text" placeholder="ue5, worldbuilding, quest" style="width:100%;background:#18181c;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:8px;font-size:13px;font-family:inherit"/>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">내용</label>
+          <textarea id="vault-create-content" rows="8" placeholder="노트 내용을 입력하세요..." style="width:100%;background:#18181c;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="doCreateVaultNote()">✏️ 노트 생성</button>
+        <div id="vault-create-result" style="margin-top:10px;font-size:13px;color:#666"></div>
+      </div>
+      <!-- 최근 수정 패널 -->
+      <div id="vault-tab-recent" class="vault-tab" style="display:none">
+        <div id="vault-recent-list" style="font-size:13px;color:#666">최근 수정 노트를 불러오는 중...</div>
+      </div>
+      <!-- 관련 노트 패널 -->
+      <div id="vault-tab-related" class="vault-tab" style="display:none">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input id="vault-related-input" type="text" placeholder="주제 입력 (예: magic, quest, worldbuilding)" style="flex:1;background:#18181c;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit" onkeydown="if(event.key==='Enter')doGetRelatedNotes()"/>
+          <button class="btn" onclick="doGetRelatedNotes()">추천</button>
+        </div>
+        <div id="vault-related-results" style="font-size:13px;color:#666">주제를 입력하면 관련 노트를 추천합니다.</div>
+      </div>
+      <!-- 요약 패널 -->
+      <div id="vault-tab-summary" class="vault-tab" style="display:none">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="btn" onclick="doGetVaultSummary()">🔄 요약 새로고침</button>
+          <button class="btn btn-secondary" onclick="doGenerateKnowledgeSummary()">📝 Summary 파일 생성</button>
+        </div>
+        <div id="vault-summary-content" style="font-size:13px;color:#666">요약을 불러오는 중...</div>
+      </div>
+      <!-- 자동 기억 패널 -->
+      <div id="vault-tab-memory" class="vault-tab" style="display:none">
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <button class="btn" onclick="doGetAgentMemory()">🔄 기억 불러오기</button>
+          <button class="btn btn-secondary" onclick="showMemoryForm()">✏️ 수동 기록</button>
+        </div>
+        <div id="vault-memory-form" style="display:none;background:#18181c;border:1px solid #2e2e34;border-radius:8px;padding:14px;margin-bottom:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">작업 내용</label>
+              <input id="mem-task" type="text" placeholder="작업 내용" style="width:100%;background:#0d0d0f;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit"/></div>
+            <div><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">결정 사항</label>
+              <input id="mem-decision" type="text" placeholder="결정 사항" style="width:100%;background:#0d0d0f;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit"/></div>
+          </div>
+          <div style="margin-bottom:8px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">결과</label>
+            <input id="mem-result" type="text" placeholder="결과 요약" style="width:100%;background:#0d0d0f;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit"/></div>
+          <button class="btn btn-primary" onclick="doRecordMemory()">기록 저장</button>
+          <span id="mem-save-result" style="margin-left:10px;font-size:12px;color:#555"></span>
+        </div>
+        <pre id="vault-memory-content" style="font-size:12px;max-height:500px;overflow:auto;white-space:pre-wrap;color:#ccc;background:#0a0a0c;border:1px solid #1e1e22;border-radius:8px;padding:12px">기억 파일 없음. 작업 완료 시 자동으로 기록됩니다.</pre>
+      </div>
+      <!-- 결정 이력 패널 -->
+      <div id="vault-tab-decisions" class="vault-tab" style="display:none">
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <button class="btn" onclick="doGetProjectDecisions()">🔄 결정 불러오기</button>
+          <button class="btn btn-secondary" onclick="showDecisionForm()">📌 결정 기록</button>
+        </div>
+        <div id="vault-decision-form" style="display:none;background:#18181c;border:1px solid #2e2e34;border-radius:8px;padding:14px;margin-bottom:12px">
+          <div style="margin-bottom:8px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">결정 제목</label>
+            <input id="dec-title" type="text" placeholder="예: UE5 사용, Obsidian 연동" style="width:100%;background:#0d0d0f;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit"/></div>
+          <div style="margin-bottom:8px"><label style="font-size:12px;color:#666;display:block;margin-bottom:4px">상세 내용</label>
+            <input id="dec-detail" type="text" placeholder="결정 이유 또는 상세" style="width:100%;background:#0d0d0f;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit"/></div>
+          <button class="btn btn-primary" onclick="doRecordDecision()">결정 저장</button>
+          <span id="dec-save-result" style="margin-left:10px;font-size:12px;color:#555"></span>
+        </div>
+        <pre id="vault-decisions-content" style="font-size:12px;max-height:500px;overflow:auto;white-space:pre-wrap;color:#ccc;background:#0a0a0c;border:1px solid #1e1e22;border-radius:8px;padding:12px">결정 파일 없음.</pre>
+      </div>
+      <!-- Knowledge Context 패널 -->
+      <div id="vault-tab-context" class="vault-tab" style="display:none">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input id="vault-ctx-input" type="text" placeholder="작업 쿼리 입력 (예: 마법학교 정문 만들어줘)" style="flex:1;background:#18181c;border:1px solid #2e2e34;color:#e8e6df;border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit" onkeydown="if(event.key==='Enter')doBuildContext()"/>
+          <button class="btn" onclick="doBuildContext()">컨텍스트 생성</button>
+        </div>
+        <div id="vault-ctx-result" style="font-size:13px;color:#666">쿼리를 입력하면 관련 Vault 문서를 자동으로 추출합니다.</div>
+      </div>
+    </div>
+
+    <!-- 3D Inspector (V75) -->
+    <div class="page" id="page-3dinspector">
+      <div class="section-header"><h2>🔭 3D Inspector</h2><span class="section-sub">생성 에셋 검사 및 판정 — GLB / GLTF / OBJ | FBX는 V76 예정</span></div>
+      <div class="insp-wrap">
+        <!-- 파일 목록 + 최근 판정 패널 -->
+        <div class="insp-file-panel">
+          <div class="insp-file-header">
+            📁 에셋 파일
+            <button class="btn" style="float:right;padding:2px 8px;font-size:11px;margin-top:-2px" onclick="doRefreshAssetList()">🔄</button>
+          </div>
+          <div id="insp-file-list" class="insp-file-list">
+            <div style="color:#555;padding:12px;font-size:12px">로딩 중...</div>
+          </div>
+          <div class="insp-recent-hdr">📋 최근 판정 <button class="btn" style="float:right;padding:1px 6px;font-size:10px;margin-top:-2px" onclick="doRefreshInspectionList()">🔄</button></div>
+          <div id="insp-recent-list" class="insp-recent-body">
+            <div style="color:#444;padding:6px;font-size:11px">판정 기록 없음</div>
+          </div>
+        </div>
+        <!-- 뷰어 패널 -->
+        <div class="insp-view-panel">
+          <div class="insp-toolbar">
+            <button class="btn" id="btn-wireframe" onclick="doToggleWireframe()">▥ 와이어프레임</button>
+            <button class="btn" onclick="doResetCamera()">↺ Reset View</button>
+            <div class="insp-toolbar-right">
+              <span class="insp-poly">폴리곤: <span id="insp-poly">—</span></span>
+            </div>
+          </div>
+          <div class="insp-canvas-wrap">
+            <canvas id="inspector-canvas"></canvas>
+          </div>
+          <div class="insp-info" id="insp-info">파일을 선택하면 여기에 정보가 표시됩니다</div>
+        </div>
+        <!-- 판정 패널 (V78) -->
+        <div class="insp-judge-panel">
+          <div class="insp-judge-header">⚖️ 판정 기록</div>
+          <div class="insp-judge-body">
+            <!-- 모델 통계 -->
+            <div class="insp-stat-grid">
+              <div class="insp-stat-row"><span class="insp-stat-lbl">파일 크기</span><span class="insp-stat-val" id="st-size">—</span></div>
+              <div class="insp-stat-row"><span class="insp-stat-lbl">삼각형</span><span class="insp-stat-val" id="st-tris">—</span></div>
+              <div class="insp-stat-row"><span class="insp-stat-lbl">버텍스</span><span class="insp-stat-val" id="st-verts">—</span></div>
+              <div class="insp-stat-row"><span class="insp-stat-lbl">머티리얼</span><span class="insp-stat-val" id="st-mats">—</span></div>
+              <div class="insp-stat-row"><span class="insp-stat-lbl">텍스처</span><span class="insp-stat-val" id="st-tex">—</span></div>
+              <div class="insp-stat-row"><span class="insp-stat-lbl">권장 판정</span><span id="st-suggest">—</span></div>
+            </div>
+            <!-- 판정 버튼 -->
+            <div>
+              <div style="font-size:11px;color:#444;margin-bottom:4px">최종 판정 선택</div>
+              <div class="insp-verdict-btns">
+                <button class="ivbtn v-pass" id="vbtn-pass" onclick="doSelectVerdict('PASS')">✓ PASS</button>
+                <button class="ivbtn v-review" id="vbtn-review" onclick="doSelectVerdict('REVIEW')">△ REVIEW</button>
+                <button class="ivbtn v-reject" id="vbtn-reject" onclick="doSelectVerdict('REJECT')">✕ REJECT</button>
+              </div>
+            </div>
+            <!-- 입력 폼 -->
+            <div>
+              <div style="font-size:11px;color:#444;margin-bottom:3px">판정 이유</div>
+              <input id="insp-reason" type="text" class="field-input" placeholder="판정 이유 입력..." style="font-size:11px"/>
+            </div>
+            <div>
+              <div style="font-size:11px;color:#444;margin-bottom:3px">UE5 Import Path</div>
+              <input id="insp-ue-path" type="text" class="field-input" placeholder="/Game/Assets/Props/..." style="font-size:11px"/>
+            </div>
+            <div>
+              <div style="font-size:11px;color:#444;margin-bottom:3px">검사 메모</div>
+              <textarea id="insp-notes" class="field-input" rows="2" placeholder="메모..." style="font-size:11px;resize:vertical"></textarea>
+            </div>
+            <!-- 체크박스 -->
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:11px;color:#666;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="insp-collision"> 콜리전 필요</label>
+              <label style="font-size:11px;color:#666;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="insp-lod"> LOD 필요</label>
+              <label style="font-size:11px;color:#666;display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="insp-nanite"> Nanite 추천</label>
+            </div>
+            <!-- 저장 -->
+            <button class="btn btn-primary" id="btn-save-inspection" onclick="doSaveInspection()" disabled style="width:100%;font-size:12px">🔖 검사 저장</button>
+            <hr style="border-color:#1e1e22;margin:2px 0"/>
+            <!-- 보고서 / 승격 -->
+            <button class="btn" onclick="doGenerateInspectionReport()" style="width:100%;font-size:11px">📊 Inspection Report 생성</button>
+            <button class="btn" id="btn-view-report" onclick="doViewInspectionReport()" disabled style="width:100%;font-size:11px">📄 Report 보기</button>
+            <button class="btn" id="btn-promote-candidate" onclick="doPromoteToCandidate()" disabled style="width:100%;font-size:11px">🚀 Apply Candidate 승격</button>
+            <button class="btn" onclick="doRefreshInspectionList()" style="width:100%;font-size:11px">🔄 판정 목록 새로고침</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Settings -->
     <div class="page" id="page-settings">
       <div class="settings-content">
@@ -442,7 +869,8 @@ body{font-family:-apple-system,'Malgun Gothic',sans-serif;background:#0d0d0f;col
         </div>
         <div class="setting-card">
           <div class="setting-title">📁 프로젝트 설정</div>
-          <div class="field"><label>언리얼 프로젝트 경로</label><input type="text" id="cfg-path" placeholder="E:\ToribatMagicSchool"/></div>
+          <div class="field"><label>언리얼 프로젝트 경로</label><input type="text" id="cfg-path" placeholder="D:\ToribatMagicSchool"/></div>
+          <div class="field"><label>Obsidian Vault 경로</label><input type="text" id="cfg-vault" placeholder="E:\ToribatVault"/></div>
           <div class="field"><label>사이클 간격 (초): <span id="interval-val">60</span>초</label><input type="range" min="30" max="300" step="10" value="60" id="cfg-interval" oninput="document.getElementById('interval-val').textContent=this.value"/></div>
           <div class="field"><label>동시 실행 태스크 수: <span id="parallel-val">4</span>개</label><input type="range" min="1" max="8" step="1" value="4" id="cfg-parallel" oninput="document.getElementById('parallel-val').textContent=this.value"/></div>
           <div class="field"><label>Claude Code 제한 시간 (초): <span id="timeout-val">300</span>초</label><input type="range" min="120" max="900" step="60" value="300" id="cfg-timeout" oninput="document.getElementById('timeout-val').textContent=this.value"/></div>
@@ -500,6 +928,8 @@ let duplicateTimer = null;
 let patchCandidates = [];
 let commandCandidates = [];
 let applyQueueItems = [];
+let ue5ApprovedCandidates = [];
+let ue5ManifestRows = [];
 
 function getEnabledAgents(){
   const saved = config.enabledAgents || {};
@@ -645,6 +1075,10 @@ function showPage(id,el){
   if(id==='trace') loadTraceability();
   if(id==='applyqueue') loadApplyQueue();
   if(id==='knowledge') loadPinnedKnowledge();
+  if(id==='existing') loadExistingInventory();
+  if(id==='asset3d') { doRefreshAssetSummary(); doGenStatus(); }
+  if(id==='vault') doVaultStatus();
+  if(id==='3dinspector') { doRefreshAssetList(); doRefreshInspectionList(); if(typeof window.initInspector==='function' && !window._inspectorInited) window.initInspector(); }
 }
 
 // 태스크 로드
@@ -1121,7 +1555,11 @@ async function loadApplyQueue(){
   const list=document.getElementById('applyqueue-list');
   if(!list) return;
   applyQueueItems=await window.api.readApplyQueue(config.projectPath);
-  if(!applyQueueItems.length){list.innerHTML='<div class="md-view">적용 큐가 비어 있습니다.</div>';return;}
+  if(!applyQueueItems.length){
+    list.innerHTML='<div class="md-view">적용 큐가 비어 있습니다.</div>';
+    await refreshUE5ImportManifest();
+    return;
+  }
   list.innerHTML=applyQueueItems.map((row,i)=>`
     <div class="data-row wide-row">
       <span class="status-pill ${row.status==='approved'?'status-pass':row.status==='rejected'?'status-fail':'status-review'}">${row.status}</span>
@@ -1131,6 +1569,7 @@ async function loadApplyQueue(){
       <button class="abtn" onclick="showApplyQueueDiff(${i})">diff 보기</button>
     </div>
   `).join('');
+  await refreshUE5ImportManifest();
 }
 
 async function registerApplyCandidate(){
@@ -1151,6 +1590,94 @@ async function runApplyDryRun(){
   const result=await window.api.runApplyDryRun(config.projectPath, item?.file || '');
   const view=document.getElementById('applyqueue-view');
   if(view) view.textContent=`${result.message}\nallowRealApply=${result.allowRealApply}\ndryRun=${result.dryRun}\n\n${result.diff || ''}`;
+}
+
+async function createApplyReview(){
+  const item=applyQueueItems[0];
+  const result=await window.api.createApplyReview(config.projectPath, item?.file || '');
+  const view=document.getElementById('applyqueue-view');
+  if(view) view.textContent=result.ok
+    ? `Apply Review 생성: ${result.decision} (${result.score}/100)\n${result.file}\n\n${(result.reasons || []).join('\n')}`
+    : `Apply Review 실패: ${result.error}`;
+}
+
+async function generateApplyReviewReport(){
+  const result=await window.api.generateApplyReviewWorkflowReport(config.projectPath);
+  const view=document.getElementById('applyqueue-view');
+  if(view) view.textContent=result.ok ? result.report : `리뷰 보고서 실패: ${result.error}`;
+}
+
+function renderUE5ImportManifestSummary(summary){
+  const el=document.getElementById('ue5manifest-summary');
+  if(!el) return;
+  el.innerHTML=`
+    <div class="validation-card"><small>approved candidate</small><strong>${summary.approvedCount || 0}</strong></div>
+    <div class="validation-card"><small>manifest</small><strong>${summary.manifestCount || 0}</strong></div>
+    <div class="validation-card"><small>READY_FOR_IMPORT</small><strong class="trust-pass">${summary.readyCount || 0}</strong></div>
+    <div class="validation-card"><small>BLOCKED</small><strong class="${(summary.blockedCount || 0) ? 'trust-fail' : 'trust-pass'}">${summary.blockedCount || 0}</strong></div>
+    <div class="validation-card"><small>WARNING</small><strong>${summary.warningCount || 0}</strong></div>
+  `;
+}
+
+async function refreshUE5ImportManifest(){
+  const list=document.getElementById('ue5manifest-list');
+  const view=document.getElementById('ue5manifest-view');
+  if(!list) return;
+  try{
+    ue5ApprovedCandidates=await window.api.listApprovedApplyCandidates(config.projectPath);
+    ue5ManifestRows=await window.api.readUE5ImportManifests(config.projectPath);
+    const readyCount=ue5ManifestRows.filter(m=>m.importStatus==='READY_FOR_IMPORT').length;
+    const blockedCount=ue5ManifestRows.filter(m=>m.importStatus==='BLOCKED').length;
+    const warningCount=ue5ManifestRows.filter(m=>m.notes && m.notes!=='추가 경고 없음').length;
+    renderUE5ImportManifestSummary({
+      approvedCount: ue5ApprovedCandidates.length,
+      manifestCount: ue5ManifestRows.length,
+      readyCount,
+      blockedCount,
+      warningCount
+    });
+    list.innerHTML=ue5ManifestRows.length ? ue5ManifestRows.slice(0,20).map(row=>`
+      <div class="data-row wide-row">
+        <span class="status-pill ${row.importStatus==='READY_FOR_IMPORT'?'status-pass':row.importStatus==='BLOCKED'?'status-fail':'status-review'}">${row.importStatus}</span>
+        <div><strong>${row.assetName || row.manifestId || 'manifest'}</strong><small>${row.file}</small></div>
+        <small>${row.blockReasons || 'block 없음'}</small>
+      </div>
+    `).join('') : '<div class="md-view">아직 생성된 UE5 Import Manifest가 없습니다.</div>';
+    if(view && !ue5ManifestRows.length) view.textContent='approved candidate를 기준으로 Manifest를 생성하세요. 이 단계는 MANIFEST_ONLY입니다.';
+  }catch(e){
+    if(view) view.textContent=`UE5 Import Manifest 새로고침 실패: ${e.message || e}`;
+  }
+}
+
+async function createSelectedUE5ImportManifest(){
+  const item=applyQueueItems.find(row=>row.status==='approved') || applyQueueItems[0];
+  const view=document.getElementById('ue5manifest-view');
+  const result=await window.api.createUE5ImportManifest(config.projectPath, item?.file || '');
+  await refreshUE5ImportManifest();
+  if(view) view.textContent=result.ok
+    ? `Manifest 생성: ${result.importStatus}\n${result.file}\n\nblockReasons: ${(result.blockReasons || []).join(' / ') || '없음'}\nwarnings: ${(result.warnings || []).join(' / ') || '없음'}`
+    : `Manifest 생성 실패: ${result.error}`;
+}
+
+async function createAllUE5ImportManifests(){
+  const view=document.getElementById('ue5manifest-view');
+  if(view) view.textContent='Approved 전체 Manifest 생성 중...';
+  const result=await window.api.createUE5ImportManifestsFromApproved(config.projectPath);
+  await refreshUE5ImportManifest();
+  if(view) view.textContent=`Manifest 생성 완료: total=${result.total}, READY_FOR_IMPORT=${result.readyCount}, BLOCKED=${result.blockedCount}`;
+}
+
+async function generateUE5ImportManifestReport(){
+  const result=await window.api.generateUE5ImportManifestReport(config.projectPath);
+  await refreshUE5ImportManifest();
+  const view=document.getElementById('ue5manifest-view');
+  if(view) view.textContent=result.ok ? result.report : `Manifest Report 생성 실패: ${result.error}`;
+}
+
+async function viewUE5ImportManifestReport(){
+  const result=await window.api.generateUE5ImportManifestReport(config.projectPath);
+  const view=document.getElementById('ue5manifest-view');
+  if(view) view.textContent=result.ok ? result.report : `Manifest Report 보기 실패: ${result.error}`;
 }
 
 async function approveApplyQueue(){
@@ -1203,12 +1730,389 @@ async function savePinnedKnowledge(){
   alert('Pinned Knowledge가 저장됐습니다.');
 }
 
+// ── V67-V72: 3D 에셋 파이프라인 ────────────────────────────────────────────
+async function doRefreshAssetSummary() {
+  try {
+    const s = await window.api.getAssetPipelineSummary(config.projectPath);
+    document.getElementById('a3d-images').textContent    = s.imageCount     ?? '—';
+    document.getElementById('a3d-intakes').textContent   = s.intakeCount    ?? '—';
+    document.getElementById('a3d-plans').textContent     = s.planCount      ?? '—';
+    document.getElementById('a3d-jobs').textContent      = s.jobCount       ?? '—';
+    document.getElementById('a3d-generated').textContent = s.generatedCount ?? '—';
+    document.getElementById('a3d-pass').textContent      = s.passCount      ?? '—';
+    document.getElementById('a3d-review').textContent    = s.reviewCount    ?? '—';
+    document.getElementById('a3d-reject').textContent    = s.rejectCount    ?? '—';
+    document.getElementById('a3d-candidates').textContent= s.candidateCount ?? '—';
+  } catch(e) {
+    document.getElementById('a3d-status').textContent = '오류: ' + e.message;
+  }
+}
+async function doIntakeImages() {
+  document.getElementById('a3d-status').textContent = 'Intake 생성 중...';
+  const r = await window.api.scanAssetInputImages(config.projectPath);
+  document.getElementById('a3d-status').textContent = `Intake 완료: ${r.count}개 이미지 등록`;
+  await doRefreshAssetSummary();
+}
+async function doDecompositionPlan() {
+  document.getElementById('a3d-status').textContent = '분해 계획 생성 중...';
+  const base = config.projectPath + '\\asset_inputs\\analyzed\\';
+  const intakeFile = prompt('intake 파일명 (asset_inputs/analyzed/ 아래, 없으면 자동):');
+  const fullPath = intakeFile ? base + intakeFile : '';
+  const r = await window.api.generateImageDecompositionPlan(config.projectPath, fullPath);
+  document.getElementById('a3d-status').textContent = r.ok ? `분해 계획 생성: ${r.segmentCount}개 segment` : '오류: ' + r.reason;
+  await doRefreshAssetSummary();
+}
+async function doGenerateJobs() {
+  document.getElementById('a3d-status').textContent = '3D Job 생성 중...';
+  const base = config.projectPath + '\\asset_decomposition_plans\\';
+  const planFile = prompt('decomposition 파일명 (asset_decomposition_plans/ 아래, 없으면 자동):');
+  const fullPath = planFile ? base + planFile : '';
+  const r = await window.api.generateSegment3DJobs(config.projectPath, fullPath);
+  document.getElementById('a3d-status').textContent = r.ok ? `Job 생성: ${r.jobCount}개` : '오류: ' + r.reason;
+  await doRefreshAssetSummary();
+}
+async function doImageTo3DDryRun() {
+  document.getElementById('a3d-status').textContent = 'Image-to-3D dry-run 실행 중...';
+  document.getElementById('a3d-output').textContent = '실행 중...';
+  const r = await window.api.runImageTo3DDryRun(config.projectPath);
+  document.getElementById('a3d-status').textContent =
+    `dry-run 완료 — 이미지 ${r.imageCount}개 → Job ${r.jobCount}개 → 후보 ${r.candidateCount}개`;
+  const report = await window.api.readAssetQualityReport(config.projectPath);
+  document.getElementById('a3d-output').textContent = report || '보고서 없음';
+  await doRefreshAssetSummary();
+}
+async function doQualityGate() {
+  document.getElementById('a3d-status').textContent = '품질 검사 중...';
+  const r = await window.api.runAssetQualityGate(config.projectPath);
+  document.getElementById('a3d-status').textContent =
+    `품질 검사 완료 — PASS:${r.passCount} REVIEW:${r.reviewCount} REJECT:${r.rejectCount}`;
+  const report = await window.api.readAssetQualityReport(config.projectPath);
+  document.getElementById('a3d-output').textContent = report || '보고서 없음';
+  await doRefreshAssetSummary();
+}
+
+// ── V76: 3D Generator Manager ─────────────────────────────────────────────
+const GEN_PROVIDER_LABELS = { hunyuan3d:'Hunyuan3D', trellis:'TRELLIS', stableFast3D:'Stable Fast 3D', blender:'Blender' };
+
+async function doGenStatus() {
+  const out = document.getElementById('gen-output');
+  out.textContent = '상태 조회 중...';
+  try {
+    const s = await window.api.getAssetGeneratorStatus(config.projectPath);
+    // 배지/카드 업데이트
+    const badge = document.getElementById('gen-enabled-badge');
+    badge.textContent = s.enabled ? '활성화' : '비활성화';
+    badge.style.background = s.enabled ? '#0f2a1a' : '#1a1a0f';
+    badge.style.color = s.enabled ? '#4caf7d' : '#888';
+    document.getElementById('gen-provider').textContent  = s.defaultProvider || 'none';
+    const drEl = document.getElementById('gen-dry-run');
+    drEl.textContent = s.dryRun ? 'ON' : 'OFF';
+    drEl.style.color = s.dryRun ? '#f0a940' : '#4caf7d';
+    document.getElementById('gen-pending').textContent   = s.pendingJobs;
+    document.getElementById('gen-done').textContent      = s.doneJobs;
+    document.getElementById('gen-failed').textContent    = s.failedJobs;
+    document.getElementById('gen-assets').textContent    = s.generatedAssets;
+    const canEl = document.getElementById('gen-can-run');
+    canEl.textContent = s.canRun ? '✅ 실행 가능' : '🔒 실행 불가 (enabled·dryRun·provider 확인)';
+    canEl.style.color = s.canRun ? '#4caf7d' : '#e05252';
+    // 실행 버튼 활성/비활성
+    const runBtn = document.getElementById('btn-gen-run');
+    if (runBtn) { runBtn.disabled = !s.canRun; runBtn.title = s.canRun ? '실행 가능' : 'enabled=true + dryRun=false + provider 설정 완료 시 활성화'; }
+    // provider 목록
+    const cfg = await window.api.loadAssetGeneratorConfig();
+    const provList = document.getElementById('gen-provider-list');
+    if (provList && cfg.providers) {
+      provList.innerHTML = Object.entries(cfg.providers).map(([k, v]) =>
+        `<div style="background:#18181c;border:1px solid #1e1e22;border-radius:6px;padding:6px 10px;display:flex;align-items:center;gap:6px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${v.enabled?'#4caf7d':'#333'};flex-shrink:0"></span>
+          <span style="font-weight:600;color:#c8c6bf">${GEN_PROVIDER_LABELS[k]||k}</span>
+          <span style="margin-left:auto;font-size:10px;color:#555">${v.command?'CMD ✓':'CMD ✗'} ${v.workingDir?'DIR ✓':'DIR ✗'}</span>
+        </div>`
+      ).join('');
+    }
+    out.textContent = JSON.stringify(s, null, 2);
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doGenLoadConfig() {
+  const out = document.getElementById('gen-output');
+  try {
+    const cfg = await window.api.loadAssetGeneratorConfig();
+    out.textContent = JSON.stringify(cfg, null, 2);
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doGenListPendingJobs() {
+  const out = document.getElementById('gen-output');
+  out.textContent = 'Pending Job 목록 조회 중...';
+  try {
+    const s = await window.api.getAssetGeneratorStatus(config.projectPath);
+    out.textContent = `Pending: ${s.pendingJobs}  Done: ${s.doneJobs}  Failed: ${s.failedJobs}\n\n설정 파일: ${s.configFile}`;
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doGenDryRun() {
+  const out = document.getElementById('gen-output');
+  out.textContent = 'dry-run 명령 생성 중...';
+  try {
+    // pending 첫 번째 job 파일 찾기 (없으면 빈 값)
+    const r = await window.api.dryRun3DGeneration('', config.projectPath);
+    let text = '=== dry-run 결과 ===\n\n';
+    text += `실행 가능: ${r.canRun ? '✅' : '❌'}\n`;
+    text += `예정 명령: ${r.command}\n\n`;
+    text += '=== 체크리스트 ===\n';
+    (r.checks || []).forEach(c => { text += `  ${c.ok?'✅':'❌'} ${c.label}: ${c.msg}\n`; });
+    out.textContent = text;
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doDetectAssets() {
+  const out = document.getElementById('gen-output');
+  out.textContent = '결과물 감지 중...';
+  try {
+    const r = await window.api.detectGenerated3DAssets(config.projectPath);
+    if (!r.ok) { out.textContent = '오류: ' + r.error; return; }
+    let text = `=== generated_assets 감지 결과 ===\n총 ${r.assets.length}개 파일\n\n`;
+    r.assets.forEach(a => {
+      const warn = a.reject ? ' [REJECT - 용량 초과]' : a.warn ? ' [WARN - 대용량]' : '';
+      text += `  ${a.ext.toUpperCase().padEnd(5)} ${a.name} (${a.sizeMB}MB)${warn}\n`;
+    });
+    out.textContent = text || '파일 없음';
+    await doRefreshAssetSummary();
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doGenRun() {
+  const out = document.getElementById('gen-output');
+  const btn = document.getElementById('btn-gen-run');
+  if (btn && btn.disabled) { out.textContent = '실행 불가 — enabled=true + dryRun=false + provider 설정 완료 필요'; return; }
+  out.textContent = '로컬 3D 생성 실행 중... (결과를 기다립니다)';
+  try {
+    const r = await window.api.runLocal3DGenerator('', config.projectPath);
+    out.textContent = r.ok
+      ? `✅ 생성 완료\n${JSON.stringify(r, null, 2)}`
+      : `❌ 실패: ${r.reason}\n${JSON.stringify(r, null, 2)}`;
+    await doGenStatus();
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+// ── V77: 환경 점검 시스템 ─────────────────────────────────────────────────
+const ENV_LEVEL_COLOR = { PASS:'#4caf7d', WARNING:'#f0a940', FAIL:'#e05252' };
+const ENV_LEVEL_ICON  = { PASS:'✅', WARNING:'⚠️', FAIL:'❌' };
+
+function renderEnvGrid(items) {
+  const grid = document.getElementById('env-grid');
+  if (!grid || !items) return;
+  grid.innerHTML = Object.entries(items).map(([k, v]) =>
+    `<div style="background:#18181c;border:1px solid #1e1e22;border-radius:6px;padding:6px 8px">
+       <div style="font-size:10px;color:#555;margin-bottom:2px">${v.label}</div>
+       <div style="display:flex;align-items:center;gap:4px">
+         <span style="color:${ENV_LEVEL_COLOR[v.level]||'#888'};font-size:11px">${ENV_LEVEL_ICON[v.level]||'?'}</span>
+         <span style="font-size:11px;color:#c8c6bf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${v.value}">${v.value}</span>
+       </div>
+     </div>`
+  ).join('');
+}
+
+function updateReadinessBadge(envOverall, providerOverall) {
+  const badge = document.getElementById('readiness-badge');
+  const envBadge = document.getElementById('env-overall-badge');
+  if (!badge) return;
+  const overall = (envOverall === 'PASS' && (!providerOverall || providerOverall === 'PASS')) ? 'PASS'
+    : (envOverall === 'FAIL' || providerOverall === 'FAIL') ? 'FAIL' : 'WARNING';
+  if (envBadge) {
+    envBadge.textContent = envOverall || '미확인';
+    envBadge.style.background = ENV_LEVEL_COLOR[envOverall] ? (envOverall==='PASS'?'#0f2a1a':envOverall==='WARNING'?'#2a1a08':'#2a0808') : '#1a1a1f';
+    envBadge.style.color = ENV_LEVEL_COLOR[envOverall] || '#666';
+  }
+  if (overall === 'PASS') {
+    badge.style.display = 'inline';
+    badge.style.background = '#0f2a1a'; badge.style.color = '#4caf7d';
+    badge.textContent = '✅ 실행 준비 완료';
+  } else if (overall === 'WARNING') {
+    badge.style.display = 'inline';
+    badge.style.background = '#2a1a08'; badge.style.color = '#f0a940';
+    badge.textContent = '⚠️ 일부 경고';
+  } else {
+    badge.style.display = 'inline';
+    badge.style.background = '#2a0808'; badge.style.color = '#e05252';
+    badge.textContent = '❌ 실행 불가';
+  }
+}
+
+async function doEnvCheck() {
+  const out = document.getElementById('gen-output');
+  out.textContent = '환경 점검 중... (약 5~10초 소요)';
+  try {
+    const r = await window.api.getEnvironmentStatus();
+    renderEnvGrid(r.items);
+    updateReadinessBadge(r.overall, null);
+    let text = `=== 환경 점검 결과 === 종합: ${r.overall}\n\n`;
+    for (const [, v] of Object.entries(r.items||{})) {
+      text += `  ${ENV_LEVEL_ICON[v.level]||'?'} ${v.label.padEnd(12)}: ${v.value}\n`;
+    }
+    out.textContent = text;
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doGpuCheck() {
+  const out = document.getElementById('gen-output');
+  out.textContent = 'GPU 점검 중...';
+  try {
+    const r = await window.api.detectGpu();
+    out.textContent = `=== GPU 점검 결과 ===\n이름: ${r.name}\n제조사: ${r.vendor}\nVRAM: ${r.vramGB}GB\n드라이버: ${r.driver||'알 수 없음'}\n감지 방법: ${r.source}\n판정: ${r.level} ${ENV_LEVEL_ICON[r.level]||''}\n\n기준: 0~5GB=FAIL / 6~7GB=WARNING / 8GB+=PASS`;
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doProviderCompat() {
+  const out = document.getElementById('gen-output');
+  out.textContent = 'Provider 호환성 확인 중...';
+  try {
+    const cfg = await window.api.loadAssetGeneratorConfig();
+    const provider = cfg.defaultProvider || 'trellis';
+    const r = await window.api.checkProviderCompatibility(provider);
+    let text = `=== ${r.label || provider} 호환성 ===\n종합: ${r.overall} ${ENV_LEVEL_ICON[r.overall]||''}\n\n`;
+    (r.checks||[]).forEach(c => { text += `  ${ENV_LEVEL_ICON[c.level]||'?'} ${c.label.padEnd(10)}: ${c.message}\n`; });
+    out.textContent = text;
+    updateReadinessBadge(null, r.overall);
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doInstallCheck() {
+  const out = document.getElementById('gen-output');
+  out.textContent = '설치 감지 중...';
+  try {
+    const cfg = await window.api.loadAssetGeneratorConfig();
+    const provider = cfg.defaultProvider || 'trellis';
+    const r = await window.api.detectProviderInstallation(provider);
+    const statusIcon = { Installed:'✅', Partial:'⚠️', Missing:'❌' };
+    let text = `=== ${provider} 설치 상태 ===\n상태: ${statusIcon[r.status]||'?'} ${r.status}\n\n`;
+    (r.checks||[]).forEach(c => { text += `  ${c.ok?'✅':'❌'} ${c.label}: ${c.value}\n`; });
+    out.textContent = text;
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doPreflight() {
+  const out = document.getElementById('gen-output');
+  out.textContent = '사전 점검 실행 중...';
+  try {
+    const r = await window.api.runPreflightChecks(config.projectPath);
+    let text = `=== 사전 점검 결과 ===\n종합: ${r.ok ? '✅ PASS' : '❌ FAIL'}\n\n`;
+    if (r.failItems?.length) text += `FAIL (${r.failItems.length}개):\n${r.failItems.map(i=>'  ❌ '+i).join('\n')}\n\n`;
+    if (r.warnItems?.length) text += `WARNING (${r.warnItems.length}개):\n${r.warnItems.map(i=>'  ⚠️ '+i).join('\n')}\n\n`;
+    if (r.passItems?.length) text += `PASS (${r.passItems.length}개):\n${r.passItems.map(i=>'  ✅ '+i).join('\n')}\n`;
+    out.textContent = text;
+    const runBtn = document.getElementById('btn-gen-run');
+    if (runBtn) runBtn.disabled = !r.ok;
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doLoadGenConfigToUI() {
+  try {
+    const cfg = await window.api.loadAssetGeneratorConfig();
+    const sel = (id, val) => { const el = document.getElementById(id); if (el) el.value = String(val); };
+    sel('cfg-gen-enabled',  cfg.enabled);
+    sel('cfg-gen-dryrun',   cfg.dryRun);
+    sel('cfg-gen-provider', cfg.defaultProvider || 'none');
+    sel('cfg-gen-timeout',  cfg.generatorTimeoutMinutes || 120);
+    const prov = cfg.providers?.[cfg.defaultProvider] || {};
+    sel('cfg-gen-workdir',  prov.workingDir  || '');
+    sel('cfg-gen-outdir',   cfg.outputDir    || '');
+    document.getElementById('gen-output').textContent = '설정 로드 완료';
+  } catch(e) { document.getElementById('gen-output').textContent = '오류: ' + e.message; }
+}
+
+async function doSaveGenConfig() {
+  const out = document.getElementById('gen-output');
+  try {
+    const cfg = await window.api.loadAssetGeneratorConfig();
+    const providerKey = document.getElementById('cfg-gen-provider')?.value || cfg.defaultProvider;
+    cfg.enabled  = document.getElementById('cfg-gen-enabled')?.value === 'true';
+    cfg.dryRun   = document.getElementById('cfg-gen-dryrun')?.value !== 'false';
+    cfg.defaultProvider = providerKey;
+    cfg.generatorTimeoutMinutes = parseInt(document.getElementById('cfg-gen-timeout')?.value || '120', 10);
+    cfg.outputDir = document.getElementById('cfg-gen-outdir')?.value || cfg.outputDir;
+    if (cfg.providers && cfg.providers[providerKey]) {
+      cfg.providers[providerKey].workingDir = document.getElementById('cfg-gen-workdir')?.value || '';
+    }
+    const r = await window.api.saveAssetGeneratorConfig(cfg);
+    out.textContent = r.ok ? '✅ 설정 저장 완료' : '❌ 저장 실패: ' + r.error;
+    await doGenStatus();
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+async function doVerifyGenConfig() {
+  const out = document.getElementById('gen-output');
+  out.textContent = '설정 검증 중...';
+  try {
+    const r = await window.api.dryRun3DGeneration('', config.projectPath);
+    let text = `=== 설정 검증 결과 ===\n실행 가능: ${r.canRun ? '✅' : '❌'}\n예정 명령: ${r.command}\n\n체크리스트:\n`;
+    (r.checks||[]).forEach(c => { text += `  ${c.ok?'✅':'❌'} ${c.label}: ${c.msg}\n`; });
+    out.textContent = text;
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+}
+
+// ── V62-V65: 기존 프로젝트 분석 ────────────────────────────────────────────
+async function loadExistingInventory(){
+  const txt = await window.api.readExistingProjectInventory(config.projectPath);
+  document.getElementById('ep-output').textContent = txt || '인벤토리 없음 — 프로젝트 스캔을 실행하세요.';
+}
+
+async function doScanExistingProject(){
+  document.getElementById('ep-output').textContent = '스캔 중...';
+  try {
+    const r = await window.api.scanExistingProject(config.projectPath);
+    document.getElementById('ep-class-count').textContent = r.allClassNames?.length ?? '—';
+    document.getElementById('ep-system-count').textContent = r.implementedSystems?.length ?? '—';
+    document.getElementById('ep-map-count').textContent = r.mapCount ?? '—';
+    document.getElementById('ep-file-count').textContent = r.sourceFileCount ?? '—';
+    document.getElementById('ep-implemented-list').innerHTML =
+      (r.implementedSystems||[]).map(s=>`<span style="display:inline-block;background:#1e3a2f;color:#4caf7d;border-radius:4px;padding:2px 8px;margin:2px">${s}</span>`).join('') || '없음';
+    document.getElementById('ep-missing-list').innerHTML =
+      (r.missingSystems||[]).map(s=>`<span style="display:inline-block;background:#3a2a1a;color:#f0a940;border-radius:4px;padding:2px 8px;margin:2px">${s}</span>`).join('') || '없음';
+    const inv = await window.api.readExistingProjectInventory(config.projectPath);
+    document.getElementById('ep-output').textContent = inv || JSON.stringify(r, null, 2);
+  } catch(e) {
+    document.getElementById('ep-output').textContent = '오류: ' + e.message;
+  }
+}
+
+async function doReadInventory(){
+  const txt = await window.api.readExistingProjectInventory(config.projectPath);
+  document.getElementById('ep-output').textContent = txt || '인벤토리 없음.';
+}
+
+async function doFindImplementation(){
+  const name = prompt('분석할 시스템명 입력 (예: magic, quest, dialogue):');
+  if(!name) return;
+  const r = await window.api.findExistingImplementation(config.projectPath, name);
+  document.getElementById('ep-output').textContent = JSON.stringify(r, null, 2);
+}
+
+async function doValidateCandidate(){
+  const file = prompt('검사할 candidate 파일명 (apply_candidates/code/ 아래):');
+  if(!file) return;
+  const r = await window.api.validateCandidateAgainstProject(config.projectPath, file);
+  const color = r.decision==='PASS' ? '#4caf7d' : r.decision==='REJECT' ? '#e05252' : '#f0a940';
+  document.getElementById('ep-output').textContent =
+    `[${r.decision}] ${r.reason}\n\n` + JSON.stringify(r, null, 2);
+}
+
+async function doGenerateExtension(){
+  const name = prompt('확장할 시스템명 (예: magic, quest):');
+  if(!name) return;
+  const desc = prompt('추가할 기능 설명:') || '기능 확장';
+  const r = await window.api.generateExtensionCandidate(config.projectPath, name, {description: desc});
+  document.getElementById('ep-output').textContent = JSON.stringify(r, null, 2);
+}
+
 // 설정
 async function loadSettings(){
   config=await window.api.getConfig();
   document.getElementById('cfg-openai').value=config.openaiKey||'';
   document.getElementById('cfg-anthropic').value=config.anthropicKey||'';
-  document.getElementById('cfg-path').value=config.projectPath||'E:\\ToribatMagicSchool';
+  document.getElementById('cfg-path').value=config.projectPath||'D:\\ToribatMagicSchool';
+  document.getElementById('cfg-vault').value=config.vaultPath||'E:\\ToribatVault';
   document.getElementById('cfg-interval').value=config.intervalSeconds||60;
   document.getElementById('interval-val').textContent=config.intervalSeconds||60;
   document.getElementById('cfg-parallel').value=config.maxParallelTasks||4;
@@ -1223,6 +2127,7 @@ async function saveSettings(){
   config.openaiKey=document.getElementById('cfg-openai').value;
   config.anthropicKey=document.getElementById('cfg-anthropic').value;
   config.projectPath=document.getElementById('cfg-path').value;
+  config.vaultPath=document.getElementById('cfg-vault').value;
   config.intervalSeconds=parseInt(document.getElementById('cfg-interval').value);
   config.maxParallelTasks=parseInt(document.getElementById('cfg-parallel').value);
   config.claudeTimeoutSeconds=parseInt(document.getElementById('cfg-timeout').value);
@@ -1232,6 +2137,226 @@ async function saveSettings(){
   alert('저장됐습니다!');
 }
 
+// ── V73 Vault 지식 ────────────────────────────────────────────
+function vaultPath(){ return config.vaultPath || 'E:\\ToribatVault'; }
+
+function showVaultTab(name){
+  document.querySelectorAll('.vault-tab').forEach(t=>t.style.display='none');
+  const el = document.getElementById('vault-tab-'+name);
+  if(el) el.style.display='';
+  if(name==='recent') doGetRecentNotes();
+  if(name==='summary') doGetVaultSummary();
+  if(name==='memory') doGetAgentMemory();
+  if(name==='decisions') doGetProjectDecisions();
+}
+
+async function doVaultStatus(){
+  const s = await window.api.getVaultStatus(vaultPath());
+  const bar = document.getElementById('vault-warn-bar');
+  if(!s.exists){
+    bar.style.display=''; bar.textContent='⚠ ' + s.warning;
+    document.getElementById('v-note-count').textContent='—';
+    document.getElementById('v-folder-count').textContent='—';
+    document.getElementById('v-tag-count').textContent='—';
+    document.getElementById('v-link-count').textContent='—';
+  } else {
+    bar.style.display='none';
+    document.getElementById('v-note-count').textContent=s.noteCount;
+    document.getElementById('v-folder-count').textContent=s.folderCount;
+    const sum = await window.api.getVaultSummary(vaultPath());
+    document.getElementById('v-tag-count').textContent=sum.ok ? sum.tagCount : '—';
+    document.getElementById('v-link-count').textContent=sum.ok ? sum.linkCount : '—';
+  }
+  showVaultTab('search');
+}
+
+async function doVaultSearch(){
+  const q = document.getElementById('vault-search-input').value.trim();
+  const el = document.getElementById('vault-search-results');
+  if(!q){ el.textContent='검색어를 입력하세요.'; return; }
+  el.textContent='검색 중...';
+  const r = await window.api.searchVault(vaultPath(), q);
+  if(!r.ok){ el.textContent='오류: ' + r.error; return; }
+  if(!r.results.length){ el.innerHTML='<span style="color:#555">결과 없음</span>'; return; }
+  el.innerHTML = r.results.map(n=>`
+    <div class="vault-note-item" onclick="doReadVaultNote('${n.path.replace(/'/g,"\\'")}')">
+      <div class="vault-note-title">${n.title}</div>
+      <div class="vault-note-meta">
+        <span>${n.path}</span>
+        ${n.tags.map(t=>`<span class="vault-tag">${t}</span>`).join('')}
+      </div>
+      ${n.snippet ? `<div class="vault-snippet">${n.snippet}</div>` : ''}
+    </div>`).join('');
+}
+
+async function doReadVaultNote(notePath){
+  const r = await window.api.readVaultNote(vaultPath(), notePath);
+  if(!r.ok){ alert('노트 읽기 실패: ' + r.error); return; }
+  const win = window.open('', '_blank');
+  if(win) { win.document.write(`<pre style="font-family:monospace;padding:20px;background:#0d0d0f;color:#e8e6df;white-space:pre-wrap">${r.content.replace(/</g,'&lt;')}</pre>`); win.document.close(); }
+  else { document.getElementById('vault-search-results').innerHTML += `<pre style="margin-top:10px;background:#111;padding:12px;border-radius:6px;font-size:12px;white-space:pre-wrap;color:#ccc;overflow:auto;max-height:300px">${r.content.replace(/</g,'&lt;')}</pre>`; }
+}
+
+async function doCreateVaultNote(){
+  const folder  = document.getElementById('vault-create-folder').value;
+  const title   = document.getElementById('vault-create-title').value.trim();
+  const tagsRaw = document.getElementById('vault-create-tags').value.trim();
+  const content = document.getElementById('vault-create-content').value;
+  const result  = document.getElementById('vault-create-result');
+  if(!title){ result.innerHTML='<span style="color:#e05252">제목을 입력하세요.</span>'; return; }
+  const tags = tagsRaw ? tagsRaw.split(',').map(t=>t.trim()).filter(Boolean) : [];
+  const r = await window.api.createVaultNote(vaultPath(), folder, title, content, tags);
+  if(!r.ok){ result.innerHTML=`<span style="color:#e05252">실패: ${r.error}</span>`; return; }
+  result.innerHTML=`<span style="color:#4caf7d">생성됨: ${r.path}</span>${r.warning ? `<div class="vault-warn">⚠ ${r.warning}</div>` : ''}`;
+  document.getElementById('vault-create-title').value='';
+  document.getElementById('vault-create-content').value='';
+  document.getElementById('vault-create-tags').value='';
+  doVaultStatus();
+}
+
+async function doGetRecentNotes(){
+  const el = document.getElementById('vault-recent-list');
+  el.textContent='불러오는 중...';
+  const r = await window.api.getRecentNotes(vaultPath(), 10);
+  if(!r.ok){ el.textContent='오류: Vault 없음'; return; }
+  if(!r.notes.length){ el.innerHTML='<span style="color:#555">노트 없음</span>'; return; }
+  el.innerHTML = r.notes.map(n=>`
+    <div class="vault-note-item" onclick="doReadVaultNote('${n.path.replace(/'/g,"\\'")}')">
+      <div class="vault-note-title">${n.title}</div>
+      <div class="vault-note-meta">
+        <span>${n.path}</span>
+        <span>${new Date(n.mtime).toLocaleString('ko-KR')}</span>
+        ${n.tags.map(t=>`<span class="vault-tag">${t}</span>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+async function doGetRelatedNotes(){
+  const topic = document.getElementById('vault-related-input').value.trim();
+  const el = document.getElementById('vault-related-results');
+  if(!topic){ el.textContent='주제를 입력하세요.'; return; }
+  el.textContent='검색 중...';
+  const r = await window.api.getRelatedNotes(vaultPath(), topic);
+  if(!r.ok){ el.textContent='오류: Vault 없음'; return; }
+  if(!r.results.length){ el.innerHTML='<span style="color:#555">관련 노트 없음</span>'; return; }
+  el.innerHTML = r.results.map(n=>`
+    <div class="vault-note-item" onclick="doReadVaultNote('${n.path.replace(/'/g,"\\'")}')">
+      <div class="vault-note-title">${n.title}</div>
+      <div class="vault-note-meta">
+        <span>${n.path}</span>
+        <span style="color:#a78bfa">관련도 ${n.score}</span>
+        ${n.tags.map(t=>`<span class="vault-tag">${t}</span>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+async function doGetVaultSummary(){
+  const el = document.getElementById('vault-summary-content');
+  const r = await window.api.getVaultSummary(vaultPath());
+  if(!r.ok){ el.textContent='오류: ' + (r.warning||'Vault 없음'); return; }
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div class="card"><div class="card-title">🏷 상위 태그</div>
+        ${r.topTags.length ? r.topTags.map(t=>`<span class="vault-tag" style="margin:2px;display:inline-block">${t.tag} (${t.count})</span>`).join('') : '<span style="color:#555">없음</span>'}
+      </div>
+      <div class="card"><div class="card-title">🔗 상위 링크</div>
+        ${r.topLinks.length ? r.topLinks.map(l=>`<span style="background:#1a2030;color:#5b9cf6;border-radius:4px;padding:1px 6px;margin:2px;display:inline-block;font-size:11px">[[${l.link}]] (${l.count})</span>`).join('') : '<span style="color:#555">없음</span>'}
+      </div>
+    </div>
+    <div class="card"><div class="card-title">🕒 최근 수정 노트</div>
+      ${r.recent.map(n=>`<div style="padding:4px 0;border-bottom:1px solid #1e1e22;font-size:12px;color:#ccc">${n.title} <span style="color:#555;font-size:11px">${n.path}</span></div>`).join('')}
+    </div>`;
+}
+
+// ── V74 Knowledge Agent 자동 기억 ─────────────────────────────
+async function doGenerateKnowledgeSummary(){
+  const r = await window.api.generateKnowledgeSummary(vaultPath());
+  const el = document.getElementById('vault-summary-content');
+  if(!r.ok){ el.textContent='오류: '+(r.error||'실패'); return; }
+  el.innerHTML = `<div style="color:#4caf7d;margin-bottom:10px">✅ 생성됨: ${r.file}</div><pre style="font-size:12px;white-space:pre-wrap;color:#ccc">${r.content.replace(/</g,'&lt;')}</pre>`;
+}
+
+async function doGetAgentMemory(){
+  const r = await window.api.getAgentMemory(vaultPath());
+  const el = document.getElementById('vault-memory-content');
+  el.textContent = r.ok ? r.content : (r.error||'기억 파일 없음');
+}
+
+async function doGetProjectDecisions(){
+  const r = await window.api.getProjectDecisions(vaultPath());
+  const el = document.getElementById('vault-decisions-content');
+  el.textContent = r.ok ? r.content : (r.error||'결정 파일 없음');
+}
+
+function showMemoryForm(){
+  const f = document.getElementById('vault-memory-form');
+  f.style.display = f.style.display==='none' ? '' : 'none';
+}
+
+function showDecisionForm(){
+  const f = document.getElementById('vault-decision-form');
+  f.style.display = f.style.display==='none' ? '' : 'none';
+}
+
+async function doRecordMemory(){
+  const task     = document.getElementById('mem-task').value.trim();
+  const decision = document.getElementById('mem-decision').value.trim();
+  const result   = document.getElementById('mem-result').value.trim();
+  const res      = document.getElementById('mem-save-result');
+  if(!task){ res.textContent='작업 내용을 입력하세요.'; res.style.color='#e05252'; return; }
+  const r = await window.api.recordAgentMemory(vaultPath(), { task, decision, result });
+  if(!r.ok){ res.textContent='실패: '+(r.error||'오류'); res.style.color='#e05252'; return; }
+  res.textContent='저장됨 ('+r.timestamp+')'; res.style.color='#4caf7d';
+  document.getElementById('mem-task').value='';
+  document.getElementById('mem-decision').value='';
+  document.getElementById('mem-result').value='';
+  doGetAgentMemory();
+}
+
+async function doRecordDecision(){
+  const title  = document.getElementById('dec-title').value.trim();
+  const detail = document.getElementById('dec-detail').value.trim();
+  const res    = document.getElementById('dec-save-result');
+  if(!title){ res.textContent='결정 제목을 입력하세요.'; res.style.color='#e05252'; return; }
+  const r = await window.api.recordDecision(vaultPath(), title, detail);
+  if(!r.ok){ res.textContent = r.reason==='중복 결정' ? '이미 기록된 결정입니다.' : '실패: '+(r.error||'오류'); res.style.color='#f0a940'; return; }
+  res.textContent='저장됨'; res.style.color='#4caf7d';
+  document.getElementById('dec-title').value='';
+  document.getElementById('dec-detail').value='';
+  doGetProjectDecisions();
+}
+
+async function doBuildContext(){
+  const q   = document.getElementById('vault-ctx-input').value.trim();
+  const el  = document.getElementById('vault-ctx-result');
+  if(!q){ el.textContent='쿼리를 입력하세요.'; return; }
+  el.innerHTML='<span style="color:#555">검색 중...</span>';
+  const r = await window.api.buildKnowledgeContext(vaultPath(), q);
+  if(!r.ok||!r.refs.length){
+    el.innerHTML=`<span style="color:#555">관련 문서 없음 — "${q}"에 대한 Vault 참조를 찾지 못했습니다.</span>`;
+    return;
+  }
+  const refHtml = r.refs.map(n=>`
+    <div class="vault-note-item">
+      <div class="vault-note-title">${n.title}</div>
+      <div class="vault-note-meta">
+        <span>${n.path}</span>
+        <span style="color:#a78bfa">관련도 ${n.score}</span>
+        ${(n.tags||[]).map(t=>`<span class="vault-tag">${t}</span>`).join('')}
+      </div>
+      ${n.snippet?`<div class="vault-snippet">${n.snippet}</div>`:''}
+    </div>`).join('');
+  el.innerHTML=`
+    <div style="margin-bottom:10px;padding:10px;background:#18181c;border-radius:8px;border:1px solid #2e2e34">
+      <div style="font-size:12px;color:#a78bfa;margin-bottom:6px">📊 ${r.summary}</div>
+      <div style="font-size:12px;color:#666">
+        태그: <span style="color:#e8e6df">${r.tags.slice(0,8).join(', ')||'없음'}</span>
+        &nbsp;|&nbsp; 링크: <span style="color:#5b9cf6">${r.links.slice(0,8).join(', ')||'없음'}</span>
+      </div>
+    </div>
+    ${refHtml}`;
+}
+
 // 초기화
 loadSettings();
 window.api.getStatus().then(s=>{
@@ -1239,6 +2364,374 @@ window.api.getStatus().then(s=>{
   document.getElementById('s-cycle').textContent=s.cycleCount||0;
   document.getElementById('s-files').textContent=s.generatedFiles||0;
 });
+</script>
+
+<!-- V75: 3D Inspector — Three.js ES module -->
+<script type="module">
+import * as THREE from './vendor/three.min.js';
+import { OrbitControls } from './vendor/OrbitControls.js';
+import { GLTFLoader } from './vendor/GLTFLoader.js';
+import { OBJLoader } from './vendor/OBJLoader.js';
+
+let scene, camera, renderer, controls, currentModel;
+let wireframeMode = false;
+let animFrameId = null;
+// V78
+let _lastPolyCount = 0;
+let currentInspection = { verdict: null, filePath: '', fileName: '', ext: '', fileSizeMB: 0, loadSuccess: false, savedFileName: null };
+
+window.initInspector = function() {
+  if (window._inspectorInited) return;
+  window._inspectorInited = true;
+
+  const canvas = document.getElementById('inspector-canvas');
+  if (!canvas) return;
+
+  const w = canvas.parentElement.clientWidth;
+  const h = canvas.parentElement.clientHeight;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x18181c);
+
+  camera = new THREE.PerspectiveCamera(45, w / h, 0.001, 2000);
+  camera.position.set(0, 1, 3);
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(w, h);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+  dir.position.set(5, 8, 5);
+  scene.add(dir);
+  const fill = new THREE.DirectionalLight(0xaabbff, 0.3);
+  fill.position.set(-5, 2, -5);
+  scene.add(fill);
+
+  // grid
+  const grid = new THREE.GridHelper(20, 20, 0x222226, 0x222226);
+  scene.add(grid);
+
+  const resizeObs = new ResizeObserver(() => {
+    const pw = canvas.parentElement.clientWidth;
+    const ph = canvas.parentElement.clientHeight;
+    camera.aspect = pw / ph;
+    camera.updateProjectionMatrix();
+    renderer.setSize(pw, ph);
+  });
+  resizeObs.observe(canvas.parentElement);
+
+  function animate() {
+    animFrameId = requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+};
+
+window.doLoad3DModel = async function(filePath) {
+  const infoEl = document.getElementById('insp-info');
+  const polyEl = document.getElementById('insp-poly');
+  infoEl.textContent = '로딩 중...';
+  polyEl.textContent = '—';
+
+  const cfg = await window.api.getConfig();
+  const r = await window.api.read3dFile(filePath, cfg.projectPath);
+  if (!r.ok) { infoEl.textContent = '오류: ' + r.error; return; }
+  r.path = filePath; // V78: 경로 저장
+
+  // 이전 모델 제거
+  if (currentModel) { scene.remove(currentModel); currentModel = null; }
+  wireframeMode = false;
+  const btnW = document.getElementById('btn-wireframe');
+  if (btnW) btnW.textContent = '▥ 와이어프레임';
+
+  const ext = r.ext.toLowerCase();
+
+  if (ext === 'glb' || ext === 'gltf') {
+    const bytes = Uint8Array.from(atob(r.data), c => c.charCodeAt(0));
+    const loader = new GLTFLoader();
+    loader.parse(bytes.buffer, '', gltf => {
+      currentModel = gltf.scene;
+      _afterLoad(r);
+    }, err => { infoEl.textContent = '로드 실패: ' + err.message; });
+  } else if (ext === 'obj') {
+    const text = atob(r.data);
+    const loader = new OBJLoader();
+    currentModel = loader.parse(text);
+    _afterLoad(r);
+  }
+};
+
+function _afterLoad(r) {
+  _centerModel(currentModel);
+  scene.add(currentModel);
+  _updatePolyCount();
+  document.getElementById('insp-info').textContent =
+    r.name + ' | ' + r.ext.toUpperCase() + ' | ' + (r.size / 1024).toFixed(1) + ' KB | ' + new Date(r.mtime).toLocaleString('ko-KR');
+  // V78: 판정 패널 초기화 및 자동 권장 판정 계산
+  currentInspection = { verdict: null, filePath: r.path || '', fileName: r.name, ext: r.ext.toLowerCase(), fileSizeMB: parseFloat((r.size / (1024*1024)).toFixed(2)), loadSuccess: true, savedFileName: null };
+  _updateInspectionPanel(r, _lastPolyCount);
+  const saveBtn = document.getElementById('btn-save-inspection');
+  if (saveBtn) saveBtn.disabled = false;
+  const promBtn = document.getElementById('btn-promote-candidate');
+  if (promBtn) promBtn.disabled = true;
+  const ueEl = document.getElementById('insp-ue-path');   if (ueEl) ueEl.value = '';
+  const nEl  = document.getElementById('insp-notes');     if (nEl) nEl.value = '';
+  const colEl = document.getElementById('insp-collision'); if (colEl) colEl.checked = false;
+  const lodEl = document.getElementById('insp-lod');       if (lodEl) lodEl.checked = false;
+  const nanEl = document.getElementById('insp-nanite');    if (nanEl) nanEl.checked = false;
+}
+
+function _centerModel(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  model.position.sub(center);
+  camera.position.set(0, maxDim * 0.6, maxDim * 2.2);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+window.doToggleWireframe = function() {
+  wireframeMode = !wireframeMode;
+  if (currentModel) {
+    currentModel.traverse(obj => {
+      if (obj.isMesh) {
+        if (Array.isArray(obj.material)) obj.material.forEach(m => { m.wireframe = wireframeMode; });
+        else obj.material.wireframe = wireframeMode;
+      }
+    });
+  }
+  const btn = document.getElementById('btn-wireframe');
+  if (btn) btn.textContent = wireframeMode ? '▣ 텍스처 보기' : '▥ 와이어프레임';
+};
+
+window.doResetCamera = function() {
+  if (!currentModel) return;
+  _centerModel(currentModel);
+};
+
+function _updatePolyCount() {
+  let tris = 0;
+  if (currentModel) {
+    currentModel.traverse(obj => {
+      if (obj.isMesh && obj.geometry) {
+        tris += obj.geometry.index
+          ? Math.round(obj.geometry.index.count / 3)
+          : Math.round((obj.geometry.attributes.position?.count || 0) / 3);
+      }
+    });
+  }
+  _lastPolyCount = tris;
+  const el = document.getElementById('insp-poly');
+  if (el) el.textContent = tris.toLocaleString();
+}
+
+window.updatePolyCount = _updatePolyCount;
+
+window.doRefreshAssetList = async function() {
+  const list = document.getElementById('insp-file-list');
+  if (!list) return;
+  const cfg = await window.api.getConfig();
+  const r = await window.api.listGeneratedAssets(cfg.projectPath);
+  if (!r.ok || !r.files || r.files.length === 0) {
+    list.innerHTML = '<div style="color:#555;padding:12px;font-size:12px">generated_assets/ 에 GLB/GLTF/OBJ 파일이 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = r.files.map(f => {
+    const safePath = f.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<div class="insp-file-item" onclick="window.doLoad3DModel('${safePath}')" title="${f.name}">` +
+      `<span class="insp-file-ext ${f.ext}">${f.ext.toUpperCase()}</span>` +
+      `<span class="insp-file-name">${f.name}</span>` +
+      `<span class="insp-file-size">${(f.size/1024).toFixed(1)}KB</span>` +
+      `</div>`;
+  }).join('');
+};
+
+// ── V78: 자동 판정 권장 계산 ──────────────────────────────────
+function _computeAutoVerdict(stats) {
+  if (!stats.loadSuccess) return { verdict:'REJECT', reason:'모델 로드 실패' };
+  if (!['glb','gltf','obj'].includes(stats.ext)) return { verdict:'REJECT', reason:'미지원 확장자' };
+  if (stats.fileSizeMB > 300)     return { verdict:'REJECT', reason:`파일 크기 초과 ${stats.fileSizeMB.toFixed(1)}MB > 300MB` };
+  if (stats.triangleCount > 200000) return { verdict:'REJECT', reason:`삼각형 수 초과 ${stats.triangleCount.toLocaleString()} > 200,000` };
+  if (stats.triangleCount === 0)  return { verdict:'REJECT', reason:'geometry 없음 (0 triangles)' };
+  if (stats.fileSizeMB > 100)     return { verdict:'REVIEW', reason:`파일 크기 큼 ${stats.fileSizeMB.toFixed(1)}MB > 100MB` };
+  if (stats.triangleCount > 100000) return { verdict:'REVIEW', reason:`삼각형 수 많음 ${stats.triangleCount.toLocaleString()} > 100,000` };
+  if (stats.materialCount > 10)   return { verdict:'REVIEW', reason:`머티리얼 과다 ${stats.materialCount}개` };
+  if (!stats.textureDetected)     return { verdict:'REVIEW', reason:'텍스처 미감지' };
+  return { verdict:'PASS', reason:'기본 기준 충족' };
+}
+
+function _updateInspectionPanel(fileInfo, triCount) {
+  let vertCount = 0, matCount = 0, textureDetected = false;
+  if (currentModel) {
+    currentModel.traverse(obj => {
+      if (obj.isMesh && obj.geometry) {
+        vertCount += obj.geometry.attributes.position?.count || 0;
+      }
+      if (obj.isMesh && obj.material) {
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        matCount += mats.length;
+        mats.forEach(m => { if (m.map || m.normalMap || m.roughnessMap || m.metalnessMap) textureDetected = true; });
+      }
+    });
+  }
+  const stats = {
+    fileSizeMB: currentInspection.fileSizeMB,
+    triangleCount: triCount || 0,
+    vertexCount: vertCount,
+    materialCount: matCount,
+    textureDetected,
+    loadSuccess: !!currentModel,
+    ext: currentInspection.ext
+  };
+  currentInspection.triangleCount  = stats.triangleCount;
+  currentInspection.vertexCount    = vertCount;
+  currentInspection.materialCount  = matCount;
+  currentInspection.textureDetected = textureDetected;
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('st-size',  stats.fileSizeMB.toFixed(2) + ' MB');
+  set('st-tris',  stats.triangleCount.toLocaleString());
+  set('st-verts', vertCount.toLocaleString());
+  set('st-mats',  matCount.toString());
+  set('st-tex',   textureDetected ? '감지됨' : '미감지');
+
+  const auto = _computeAutoVerdict(stats);
+  const sugEl = document.getElementById('st-suggest');
+  if (sugEl) sugEl.innerHTML = `<span class="insp-suggest-badge ${auto.verdict}">${auto.verdict}</span><span style="font-size:10px;color:#555;margin-left:4px">${auto.reason}</span>`;
+
+  doSelectVerdict(auto.verdict);
+  const rEl = document.getElementById('insp-reason');
+  if (rEl && !rEl.value) rEl.value = auto.reason;
+}
+
+window.doSelectVerdict = function(v) {
+  currentInspection.verdict = v;
+  ['PASS','REVIEW','REJECT'].forEach(x => {
+    const btn = document.getElementById('vbtn-' + x.toLowerCase());
+    if (btn) btn.classList.toggle('active', x === v);
+  });
+};
+
+window.doSaveInspection = async function() {
+  if (!currentModel || !currentInspection.fileName) return;
+  const cfg = await window.api.getConfig();
+  const assetName = currentInspection.fileName.replace(/\.[^.]+$/, '');
+  const inspData = {
+    assetName,
+    sourceFile:       currentInspection.filePath,
+    filePath:         currentInspection.filePath,
+    fileSizeMB:       currentInspection.fileSizeMB,
+    extension:        currentInspection.ext,
+    triangleCount:    currentInspection.triangleCount  || 0,
+    vertexCount:      currentInspection.vertexCount    || 0,
+    materialCount:    currentInspection.materialCount  || 0,
+    textureDetected:  currentInspection.textureDetected || false,
+    wireframeChecked: wireframeMode,
+    scaleChecked:     false,
+    pivotChecked:     false,
+    collisionNeeded:  document.getElementById('insp-collision')?.checked || false,
+    lodNeeded:        document.getElementById('insp-lod')?.checked        || false,
+    naniteRecommended:document.getElementById('insp-nanite')?.checked     || false,
+    ueImportPath:     document.getElementById('insp-ue-path')?.value      || '',
+    verdict:          currentInspection.verdict || 'REVIEW',
+    reason:           document.getElementById('insp-reason')?.value       || '',
+    notes:            document.getElementById('insp-notes')?.value        || '',
+    inspectedBy:      'ToribatAgent-V78'
+  };
+  const btn = document.getElementById('btn-save-inspection');
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+  const result = await window.api.create3DInspectionRecord(cfg.projectPath, inspData);
+  if (btn) { btn.disabled = false; btn.textContent = '🔖 검사 저장'; }
+  if (result.ok) {
+    document.getElementById('insp-info').textContent = `✅ 검사 저장 완료 [${result.verdict}] ${result.fileName}`;
+    currentInspection.savedFileName = result.fileName;
+    const promBtn = document.getElementById('btn-promote-candidate');
+    if (promBtn) promBtn.disabled = (result.verdict === 'REJECT');
+    await doRefreshInspectionList();
+  } else {
+    document.getElementById('insp-info').textContent = '❌ 검사 저장 실패: ' + result.error;
+  }
+};
+
+window.doGenerateInspectionReport = async function() {
+  const cfg = await window.api.getConfig();
+  const result = await window.api.generate3DInspectionReport(cfg.projectPath);
+  const infoEl = document.getElementById('insp-info');
+  if (result.ok) {
+    if (infoEl) infoEl.textContent = `📊 Report 생성 완료: PASS:${result.PASS} REVIEW:${result.REVIEW} REJECT:${result.REJECT}`;
+    const vBtn = document.getElementById('btn-view-report');
+    if (vBtn) { vBtn.disabled = false; vBtn._reportPath = result.reportPath; }
+  } else {
+    if (infoEl) infoEl.textContent = '❌ Report 생성 실패: ' + result.error;
+  }
+};
+
+window.doViewInspectionReport = function() {
+  const btn = document.getElementById('btn-view-report');
+  const rp  = btn?._reportPath;
+  if (!rp) return;
+  document.getElementById('insp-info').textContent = '📄 Report: ' + rp;
+};
+
+window.doPromoteToCandidate = async function() {
+  const infoEl = document.getElementById('insp-info');
+  if (!currentInspection.savedFileName) { if (infoEl) infoEl.textContent = '먼저 검사를 저장해주세요'; return; }
+  if (currentInspection.verdict === 'REJECT') { if (infoEl) infoEl.textContent = '❌ REJECT 모델은 승격 금지'; return; }
+  const cfg = await window.api.getConfig();
+  const result = await window.api.promote3DInspectionToCandidate(cfg.projectPath, currentInspection.savedFileName);
+  if (result.ok) {
+    if (infoEl) infoEl.textContent = `🚀 승격 완료 → ${result.targetFolder} / ${result.candidateName}`;
+  } else {
+    if (infoEl) infoEl.textContent = '❌ 승격 실패: ' + result.error;
+  }
+};
+
+window.doRefreshInspectionList = async function() {
+  const list = document.getElementById('insp-recent-list');
+  if (!list) return;
+  const cfg = await window.api.getConfig();
+  const r   = await window.api.list3DInspectionRecords(cfg.projectPath);
+  if (!r.ok || !r.records || r.records.length === 0) {
+    list.innerHTML = '<div style="color:#444;padding:6px;font-size:11px">판정 기록 없음</div>';
+    return;
+  }
+  list.innerHTML = r.records.slice(0, 8).map(rec => {
+    const safeName = rec.fileName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const label    = (rec.assetName || rec.fileName.replace('.inspection.md','')).slice(0, 22);
+    return `<div class="insp-recent-item" onclick="window.doLoadInspection('${safeName}')" title="${rec.reason || ''}">` +
+      `<span class="ivbadge ${rec.verdict}">${rec.verdict}</span>` +
+      `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span>` +
+      `</div>`;
+  }).join('');
+};
+
+window.doLoadInspection = async function(fileName) {
+  const cfg = await window.api.getConfig();
+  const r   = await window.api.read3DInspectionRecord(cfg.projectPath, fileName);
+  if (!r.ok) return;
+  doSelectVerdict(r.verdict);
+  const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  setV('insp-reason',  r.reason);
+  setV('insp-ue-path', r.ueImportPath);
+  setV('insp-notes',   r.notes);
+  const setC = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+  setC('insp-collision', r.collisionNeeded);
+  setC('insp-lod',       r.lodNeeded);
+  setC('insp-nanite',    r.naniteRecommended);
+  currentInspection.savedFileName = fileName;
+  const promBtn = document.getElementById('btn-promote-candidate');
+  if (promBtn) promBtn.disabled = (r.verdict === 'REJECT');
+  const infoEl = document.getElementById('insp-info');
+  if (infoEl) infoEl.textContent = `[${r.verdict}] ${r.assetName} 판정 불러옴`;
+};
 </script>
 </body>
 </html>

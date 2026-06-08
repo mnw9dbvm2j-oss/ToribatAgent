@@ -5,7 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "verify": "node scripts/verify-v19-v21.js && node scripts/verify-v22-v24.js && node scripts/verify-v25-v27.js && node scripts/verify-v28-v30.js && node scripts/verify-v31-v34.js && node scripts/verify-v35-v38.js && node scripts/verify-v39-v42.js && node scripts/verify-v43-v46.js && node scripts/verify-v47.js && node scripts/verify-v48-v50.js && node scripts/verify-pre-v48.js && node scripts/verify-v51-v54.js && node scripts/verify-v55.js && node scripts/verify-v56-v60.js",
+    "verify": "node scripts/verify-v19-v21.js && node scripts/verify-v22-v24.js && node scripts/verify-v25-v27.js && node scripts/verify-v28-v30.js && node scripts/verify-v31-v34.js && node scripts/verify-v35-v38.js && node scripts/verify-v39-v42.js && node scripts/verify-v43-v46.js && node scripts/verify-v47.js && node scripts/verify-v48-v50.js && node scripts/verify-pre-v48.js && node scripts/verify-v51-v54.js && node scripts/verify-v55.js && node scripts/verify-v56-v60.js && node scripts/verify-v67-v72-image-to-3d.js && node scripts/verify-v79-apply-review-workflow.js && node scripts/verify-v80-ue5-import-manifest.js",
     "verify:pre-v48": "node scripts/verify-pre-v48.js",
     "verify:v51-v54": "node scripts/verify-v51-v54.js",
     "verify:v55": "node scripts/verify-v55.js",
@@ -19,6 +19,16 @@
     "verify:v43-v46": "node scripts/verify-v43-v46.js",
     "verify:v47": "node scripts/verify-v47.js",
     "verify:v48-v50": "node scripts/verify-v48-v50.js",
+    "verify:v66": "node scripts/verify-v66-warning-fixes.js",
+    "verify:v67-v72": "node scripts/verify-v67-v72-image-to-3d.js",
+    "verify:v73": "node scripts/verify-v73-obsidian.js",
+    "verify:v74": "node scripts/verify-v74-memory-system.js",
+    "verify:v75": "node scripts/verify-v75-3d-inspector.js",
+    "verify:v76": "node scripts/verify-v76-free-local-3d-generator.js",
+    "verify:v77": "node scripts/verify-v77-environment-readiness.js",
+    "verify:v78": "node scripts/verify-v78-3d-inspection-workflow.js",
+    "verify:v79": "node scripts/verify-v79-apply-review-workflow.js",
+    "verify:v80": "node scripts/verify-v80-ue5-import-manifest.js",
     "build": "electron-builder --win --x64"
   },
   "build": {
@@ -36,10 +46,12 @@
   },
   "dependencies": {
     "chokidar": "^3.5.3",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "electron": "^25.9.8",
-    "electron-builder": "^24.0.0"
+    "electron-builder": "^24.0.0",
+    "three": "^0.184.0"
   }
 }

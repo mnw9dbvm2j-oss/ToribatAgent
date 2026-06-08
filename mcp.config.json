@@ -10,12 +10,12 @@
   "filesystem": {
     "enabled": false,
     "allowedRoots": [
-      "C:\\ToribatAgent",
-      "E:\\ToribatMagicSchool"
+      "E:\\ToribatAgent",
+      "D:\\ToribatMagicSchool"
     ]
   },
   "allowedRoots": [
-    "C:\\ToribatAgent",
-    "E:\\ToribatMagicSchool"
+    "E:\\ToribatAgent",
+    "D:\\ToribatMagicSchool"
   ]
 }

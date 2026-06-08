@@ -1,0 +1,49 @@
+{
+  "enabled": false,
+  "defaultProvider": "none",
+  "dryRun": true,
+  "outputDir": "D:\\ToribatMagicSchool\\generated_assets",
+  "generatorTimeoutMinutes": 120,
+  "providers": {
+    "hunyuan3d": {
+      "enabled": false,
+      "command": "",
+      "workingDir": "",
+      "outputDir": "",
+      "supportsImageTo3D": true,
+      "supportsTextTo3D": true,
+      "usesWsl2": true
+    },
+    "trellis": {
+      "enabled": false,
+      "command": "",
+      "workingDir": "",
+      "outputDir": "",
+      "supportsImageTo3D": true,
+      "supportsTextTo3D": true,
+      "usesWsl2": true
+    },
+    "stableFast3D": {
+      "enabled": false,
+      "command": "",
+      "workingDir": "",
+      "outputDir": "",
+      "supportsImageTo3D": true,
+      "supportsTextTo3D": false,
+      "usesWsl2": false
+    },
+    "blender": {
+      "enabled": false,
+      "command": "",
+      "workingDir": "",
+      "outputDir": "",
+      "supportsImageTo3D": false,
+      "supportsTextTo3D": false,
+      "usesWsl2": false
+    }
+  },
+  "allowedOutputFormats": [".glb", ".gltf", ".obj", ".fbx"],
+  "maxFileSizeMBWarning": 100,
+  "maxFileSizeMBReject": 300,
+  "allowExternalPaidApi": false
+}

@@ -1,7 +1,8 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, shell, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
+const os = require('os');
 const mcpAdapter = require('./mcp-adapter');
 
 let mainWindow, tray;
@@ -12,7 +13,8 @@ let generatedFiles = 0;
 let runningTimer = null;
 
 const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
-const DEFAULT_PROJECT_PATH = 'E:\\ToribatMagicSchool';
+const DEFAULT_PROJECT_PATH = 'D:\\ToribatMagicSchool';
+const DEFAULT_VAULT_PATH = 'E:\\ToribatVault';
 const APP_ROOT = path.resolve(__dirname, '..');
 
 const AGENT_KEYS = [
@@ -58,7 +60,8 @@ function loadConfig() {
                 localAiModel: saved.localAiModel || 'qwen2.5-vl-3b-instruct',
                 localAiFallbackPaid: saved.localAiFallbackPaid === true,
                 allowRealApply: saved.allowRealApply === true,
-                enabledAgents: normalizeEnabledAgents(saved.enabledAgents)
+                enabledAgents: normalizeEnabledAgents(saved.enabledAgents),
+                vaultPath: saved.vaultPath || DEFAULT_VAULT_PATH
             };
         }
     } catch (e) {
@@ -76,7 +79,8 @@ function loadConfig() {
         localAiModel: 'qwen2.5-vl-3b-instruct',
         localAiFallbackPaid: false,
         allowRealApply: false,
-        enabledAgents: normalizeEnabledAgents()
+        enabledAgents: normalizeEnabledAgents(),
+        vaultPath: DEFAULT_VAULT_PATH
     };
 }
 
@@ -93,7 +97,8 @@ function saveConfig(cfg) {
         localAiModel: cfg.localAiModel || 'qwen2.5-vl-3b-instruct',
         localAiFallbackPaid: cfg.localAiFallbackPaid === true,
         allowRealApply: cfg.allowRealApply === true,
-        enabledAgents: normalizeEnabledAgents(cfg.enabledAgents)
+        enabledAgents: normalizeEnabledAgents(cfg.enabledAgents),
+        vaultPath: cfg.vaultPath || DEFAULT_VAULT_PATH
     };
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(normalized, null, 2), 'utf8');
 }
@@ -177,6 +182,8 @@ function ensureProjectFolders(projectPath) {
         'apply_queue/pending',
         'apply_queue/approved',
         'apply_queue/rejected',
+        'apply_reviews',
+        'import_manifests',
         'tasks/outputs',
         'tasks/outputs/code',
         'tasks/outputs/world',
@@ -191,7 +198,19 @@ function ensureProjectFolders(projectPath) {
         'art_prompts/buildings',
         'art_prompts/characters',
         'agents',
-        'sprints'
+        'sprints',
+        // V67-V72: Image-to-3D pipeline
+        'asset_inputs',
+        'asset_inputs/images',
+        'asset_inputs/analyzed',
+        'asset_decomposition_plans',
+        'asset_generation_queue',
+        'asset_generation_queue/pending',
+        'asset_generation_queue/running',
+        'asset_generation_queue/done',
+        'asset_generation_queue/failed',
+        'generated_assets',
+        'apply_candidates/world'
     ].forEach((dir) => {
         const full = path.join(projectPath, dir);
         if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
@@ -594,8 +613,13 @@ ${template.testCriteria.map(c => `- [ ] ${c}`).join('\n')}
 - 상태3 조건: Source 파일로 실제 복사 적용
 - 상태4 조건: .uproject + 실제 구현 + QA PASS + Reviewer PASS
 `;
+    content += buildKnowledgeContextSection(template.label + ' ' + template.category);
     safeWriteFile(filePath, content);
     generatedFiles++;
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        recordAgentMemory(vp, { task: `코드 후보 생성: ${template.label}`, decision: `templateId: ${templateId}`, result: `${template.category} → ${template.targetPath}` });
+    } catch { /* 비중단 */ }
     return { filePath, templateId, category: template.category, targetPath: template.targetPath };
 }
 
@@ -653,6 +677,13 @@ function getApplyQueueDir(projectPath) {
 function getTraceabilityFile(projectPath) {
     return path.join(projectPath || DEFAULT_PROJECT_PATH, 'reports', 'traceability.md');
 }
+function getAssetInputsDir(projectPath) { return path.join(projectPath || DEFAULT_PROJECT_PATH, 'asset_inputs'); }
+function getAssetAnalyzedDir(projectPath) { return path.join(projectPath || DEFAULT_PROJECT_PATH, 'asset_inputs', 'analyzed'); }
+function getAssetDecompositionPlansDir(projectPath) { return path.join(projectPath || DEFAULT_PROJECT_PATH, 'asset_decomposition_plans'); }
+function getAssetGenerationQueueDir(projectPath) { return path.join(projectPath || DEFAULT_PROJECT_PATH, 'asset_generation_queue'); }
+function getGeneratedAssetsDir(projectPath) { return path.join(projectPath || DEFAULT_PROJECT_PATH, 'generated_assets'); }
+function getAssetQualityReportFile(projectPath) { return path.join(projectPath || DEFAULT_PROJECT_PATH, 'reports', 'asset_quality_report.md'); }
+function getAssetSegmentationRulesFile(projectPath) { return path.join(projectPath || DEFAULT_PROJECT_PATH, 'knowledge', 'asset_segmentation_rules.md'); }
 
 function getDefaultPinnedKnowledge() {
     return [
@@ -2716,7 +2747,7 @@ ${diff.substring(0, 2000) || '+ 신규 파일 생성'}
         try { generatePmValidation(projectPath); } catch (e) { /* 비중단 */ }
     }
 
-    return {
+    const promoteResult = {
         ok: true,
         applied,
         candidateFile,
@@ -2730,6 +2761,15 @@ ${diff.substring(0, 2000) || '+ 신규 파일 생성'}
             ? `실제 적용 완료: ${targetRel}${cppTargetAbs && cppProposed ? ' + ' + cppTargetRel : ''}`
             : `dry-run 완료 (실제 적용 미실행): ${targetRel} — allowRealApply=true 설정 후 재실행 필요`
     };
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        recordAgentMemory(vp, {
+            task: `후보 적용: ${targetRel}`,
+            decision: applied ? '실제 파일 적용 (allowRealApply=true)' : 'dry-run (allowRealApply=false)',
+            result: path.basename(candidateFile)
+        });
+    } catch { /* 비중단 */ }
+    return promoteResult;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3084,6 +3124,12 @@ function generatePmValidation(projectPath) {
         return { ...item, queueStatus, hasCandidate, stageLabel };
     });
 
+    // V66: stale E:\ 경로 큐 파일 감지
+    const staleQueueItems = queueItems.filter(q => q.stalePath);
+    if (staleQueueItems.length) {
+        issues.push({ severity: '주의', text: `Legacy Queue Warning: E:\\ToribatMagicSchool 경로 참조 큐 파일 ${staleQueueItems.length}개 발견 — 삭제 또는 경로 수정 필요` });
+    }
+
     const reliability = issues.some(issue => issue.severity === '오류') ? '실패' : issues.length ? '주의' : '통과';
     const fixes = issues.length
         ? issues.map(issue => `- ${issue.severity}: ${issue.text}`).join('\n')
@@ -3116,6 +3162,9 @@ function generatePmValidation(projectPath) {
 | --- | ---: | --- | --- | --- | --- | --- |
 ${enrichedStatuses.map(item => `| ${item.label} | ${item.level} | ${item.stageLabel} | ${item.queueStatus || '없음'} | ${item.hasCandidate ? '있음' : '없음'} | ${item.status} | ${item.evidence} |`).join('\n')}
 
+## Legacy Queue Warning
+- stalePath(E:\\ 잔존) 큐 파일 수: ${staleQueueItems.length}${staleQueueItems.length ? '\n' + staleQueueItems.map(q => `  - ${path.basename(q.file)}`).join('\n') : ''}
+
 ## 문제 감지
 ${issues.length ? issues.map(issue => `- [${issue.severity}] ${issue.text}`).join('\n') : '- 감지된 문제 없음'}
 
@@ -3130,8 +3179,14 @@ ${fixes}
 ## 현재 진행률 판단 신뢰성
 ${reliability === '통과' ? '현재 진행률 판단은 신뢰 가능하다.' : reliability === '주의' ? '현재 진행률 판단은 일부 주의가 필요하다.' : '현재 진행률 판단은 신뢰하기 어렵다. 위 문제를 먼저 수정해야 한다.'}
 `;
+    report += buildKnowledgeContextSection('quest magic worldbuilding UE5 vertical slice');
     safeWriteFile(getPmValidationFile(projectPath), report);
     generatedFiles++;
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        recordDecision(vp, `PM 검증 실행 — ${reliability}`, `Actual: ${progress.actual}%, 이슈 ${issues.length}건`);
+        recordAgentMemory(vp, { task: 'PM 검증 보고서 생성', decision: `신뢰도: ${reliability}`, result: `진행률 ${progress.actual}%, 이슈 ${issues.length}건` });
+    } catch { /* 비중단 */ }
     return {
         reliability,
         report,
@@ -3246,7 +3301,7 @@ ${prompt}
 - 적용 후보가 현재 스프린트 목표와 연결되는지 확인
 - Reviewer Agent PASS 또는 REVIEW 이상인지 확인
 - 실제 파일 수정 전 apply_queue dry-run 확인
-`, 'utf8');
+` + buildKnowledgeContextSection(category + ' ' + target), 'utf8');
         created.push({ file, category, risk, target, prompt });
     }
     generatedFiles += created.length;
@@ -3393,6 +3448,7 @@ function getApplyQueueSummary(projectPath) {
         const content = readTextIfExists(file.full);
         const target = parseTargetPath(content);  // V56: 공통 파서 사용
         const candidateFile = content.match(/- 적용 후보:\s*(.+)/)?.[1]?.trim() || '';
+        const stalePath = /E:\\ToribatMagicSchool|E:\/ToribatMagicSchool/i.test(content);
         return {
             file: file.full,
             status,
@@ -3401,7 +3457,8 @@ function getApplyQueueSummary(projectPath) {
             candidateFile,
             hasExisting: /- 기존 파일 존재:\s*예/.test(content),
             diff: content.match(/```diff\s*([\s\S]*?)```/)?.[1]?.trim() || '',
-            mtime: file.mtime
+            mtime: file.mtime,
+            stalePath
         };
     }));
 }
@@ -3410,6 +3467,12 @@ function moveApplyQueueItem(projectPath, queueFile, nextStatus) {
     ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
     const item = getApplyQueueSummary(projectPath).find(entry => entry.file === queueFile || entry.file.endsWith(queueFile));
     if (!item) return { moved: false, reason: '큐 항목 없음' };
+    if (nextStatus === 'approved') {
+        const review = findApplyReviewForQueue(projectPath, item.file);
+        if (!review || review.decision !== 'PASS') {
+            return { moved: false, reason: 'Apply Review PASS 필요', reviewDecision: review?.decision || 'NONE' };
+        }
+    }
     const destDir = path.join(getApplyQueueDir(projectPath), nextStatus);
     if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
     const dest = path.join(destDir, path.basename(item.file));
@@ -3435,6 +3498,462 @@ function runApplyDryRun(projectPath, queueFile) {
         message: config.allowRealApply === true ? '실제 적용 가능 설정이지만 현재 실행은 dry-run입니다.' : 'allowRealApply=false 이므로 실제 파일 수정 없이 dry-run만 수행했습니다.',
         diff: item.diff
     };
+}
+
+// ── V79: Apply Review Workflow ──────────────────────────────────────────────
+function getApplyReviewsDir(projectPath) {
+    return path.join(projectPath || DEFAULT_PROJECT_PATH, 'apply_reviews');
+}
+
+function parseApplyReviewDecision(content) {
+    const decision = String(content || '').match(/- 판정:\s*(PASS|REVIEW|REJECT)/)?.[1];
+    return decision || 'REVIEW';
+}
+
+function findApplyReviewForQueue(projectPath, queueFile) {
+    const queueBase = path.basename(queueFile || '');
+    if (!queueBase) return null;
+    const reviews = listMarkdownFilesRecursive(getApplyReviewsDir(projectPath), 300);
+    return reviews
+        .map(file => {
+            const content = readTextIfExists(file.full);
+            const linkedQueue = content.match(/- 적용 큐:\s*(.+)/)?.[1]?.trim() || '';
+            return {
+                file: file.full,
+                queueFile: linkedQueue,
+                decision: parseApplyReviewDecision(content),
+                score: Number(content.match(/- 점수:\s*(\d+)\/100/)?.[1] || 0),
+                mtime: file.mtime
+            };
+        })
+        .find(review => review.queueFile === queueFile || review.queueFile.endsWith(queueBase) || path.basename(review.queueFile) === queueBase) || null;
+}
+
+function createApplyReview(projectPath, queueFile = '') {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    const item = getApplyQueueSummary(projectPath).find(entry => entry.file === queueFile || entry.file.endsWith(queueFile)) || getApplyQueueSummary(projectPath)[0];
+    if (!item) return { ok: false, error: '적용 리뷰 대상 큐 항목 없음' };
+
+    const content = readTextIfExists(item.file);
+    const hasTarget = !!(item.targetPath || item.target);
+    const hasDiff = !!(item.diff && item.diff.trim());
+    const hasCandidate = !!(item.candidateFile && (fs.existsSync(item.candidateFile) || item.candidateFile.includes('apply_candidates')));
+    const dryRunOnly = /dry-run:\s*true/i.test(content) && /allowRealApply:\s*false/i.test(content);
+    const stalePath = item.stalePath === true;
+    const hasUnsafeWrite = /allowRealApply:\s*true/i.test(content) || /실제 쓰기 여부:\s*(?!아직 미실행)/i.test(content);
+    const score = [hasTarget, hasDiff, hasCandidate, dryRunOnly, !stalePath, !hasUnsafeWrite].filter(Boolean).length * 15 + 10;
+    const decision = hasUnsafeWrite || stalePath || !hasTarget ? 'REJECT' : score >= 85 ? 'PASS' : 'REVIEW';
+    const reasons = [];
+    if (!hasTarget) reasons.push('대상 경로 없음');
+    if (!hasDiff) reasons.push('diff 없음');
+    if (!hasCandidate) reasons.push('적용 후보 연결 약함');
+    if (!dryRunOnly) reasons.push('dry-run/allowRealApply 안전 표기 확인 필요');
+    if (stalePath) reasons.push('이전 기본 경로가 남아 있음');
+    if (hasUnsafeWrite) reasons.push('실제 쓰기 가능 표기 감지');
+    if (!reasons.length) reasons.push('대상 경로, diff, 후보 연결, dry-run 안전장치 확인');
+
+    const dir = getApplyReviewsDir(projectPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+    const file = path.join(dir, `${timestamp}_${path.basename(item.file).replace(/\.apply\.md$/i, '')}.apply-review.md`);
+    const md = `# Apply Review
+
+- 생성일: ${new Date().toLocaleString('ko-KR')}
+- 적용 큐: ${item.file}
+- 대상 경로: ${item.targetPath || item.target || ''}
+- 적용 후보: ${item.candidateFile || ''}
+- 판정: ${decision}
+- 점수: ${score}/100
+- dry-run 확인: ${dryRunOnly ? '예' : '아니오'}
+- allowRealApply required: true
+- actual content copy: false
+
+## 검토 사유
+${reasons.map(reason => `- ${reason}`).join('\n')}
+
+## 승인 조건
+- PASS 판정만 자동 승인 전 단계로 이동할 수 있다.
+- REVIEW는 보완 후 재검토한다.
+- REJECT는 적용 큐에서 거절한다.
+`;
+    safeWriteFile(file, md);
+    return { ok: true, file, decision, score, reasons, queueFile: item.file, targetPath: item.targetPath || item.target || '' };
+}
+
+function getApplyReviewSummary(projectPath) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    return listMarkdownFilesRecursive(getApplyReviewsDir(projectPath), 300).map(file => {
+        const content = readTextIfExists(file.full);
+        return {
+            file: file.full,
+            queueFile: content.match(/- 적용 큐:\s*(.+)/)?.[1]?.trim() || '',
+            targetPath: content.match(/- 대상 경로:\s*(.+)/)?.[1]?.trim() || '',
+            decision: parseApplyReviewDecision(content),
+            score: Number(content.match(/- 점수:\s*(\d+)\/100/)?.[1] || 0),
+            mtime: file.mtime
+        };
+    });
+}
+
+function generateApplyReviewWorkflowReport(projectPath) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    const queue = getApplyQueueSummary(projectPath);
+    const reviews = getApplyReviewSummary(projectPath);
+    const pass = reviews.filter(r => r.decision === 'PASS').length;
+    const review = reviews.filter(r => r.decision === 'REVIEW').length;
+    const reject = reviews.filter(r => r.decision === 'REJECT').length;
+    const unreviewed = queue.filter(item => !findApplyReviewForQueue(projectPath, item.file));
+    const report = `# V79 Apply Review Workflow
+
+- 생성 시각: ${new Date().toLocaleString('ko-KR')}
+- 적용 큐 항목: ${queue.length}
+- Apply Review: ${reviews.length}
+- PASS: ${pass}
+- REVIEW: ${review}
+- REJECT: ${reject}
+- 미검토 큐: ${unreviewed.length}
+
+## 큐 상태
+| 상태 | 대상 경로 | Apply Review | 점수 |
+| --- | --- | --- | --- |
+${queue.length ? queue.map(item => {
+    const r = findApplyReviewForQueue(projectPath, item.file);
+    return `| ${item.status} | ${(item.targetPath || item.target || '').replace(/\|/g, '/')} | ${r ? r.decision : '미검토'} | ${r ? `${r.score}/100` : '-'} |`;
+}).join('\n') : '| 큐 없음 | - | - | - |'}
+
+## 안전 원칙
+- Apply Review PASS 없이는 승인 이동을 권장하지 않는다.
+- dry-run은 실제 파일을 수정하지 않는다.
+- 실제 적용은 allowRealApply=true 사용자 설정 이후 별도 단계에서만 허용한다.
+`;
+    const file = path.join(projectPath, 'reports', 'apply_review_workflow.md');
+    safeWriteFile(file, report);
+    return { ok: true, file, report, totalQueue: queue.length, reviewCount: reviews.length, pass, review, reject, unreviewed: unreviewed.length };
+}
+
+// ── V80: UE5 Import Manifest System ─────────────────────────────────────────
+function getUE5ImportManifestDir(projectPath) {
+    return path.join(projectPath || DEFAULT_PROJECT_PATH, 'import_manifests');
+}
+
+function getUE5ImportManifestReportFile(projectPath) {
+    return path.join(projectPath || DEFAULT_PROJECT_PATH, 'reports', 'ue5_import_manifest_report.md');
+}
+
+function normalizeProjectPath(projectPath, maybePath) {
+    if (!maybePath) return '';
+    const clean = String(maybePath).trim().replace(/^["']|["']$/g, '');
+    return path.isAbsolute(clean) ? clean : path.join(projectPath || DEFAULT_PROJECT_PATH, clean);
+}
+
+function findCandidatePath(projectPath, candidateFile) {
+    const direct = normalizeProjectPath(projectPath, candidateFile);
+    if (direct && fs.existsSync(direct)) return direct;
+    const base = path.basename(candidateFile || '');
+    if (!base) return direct || '';
+    const roots = [
+        path.join(getApplyCandidatesDir(projectPath), 'art'),
+        path.join(getApplyCandidatesDir(projectPath), 'world')
+    ];
+    for (const root of roots) {
+        const found = listMarkdownFilesRecursive(root, 300).find(file => file.name === base || file.full.endsWith(candidateFile));
+        if (found) return found.full;
+    }
+    return direct || candidateFile || '';
+}
+
+function findInspectionPath(projectPath, inspectionFile) {
+    const direct = normalizeProjectPath(projectPath, inspectionFile);
+    if (direct && fs.existsSync(direct)) return direct;
+    const base = path.basename(inspectionFile || '');
+    if (!base) return direct || '';
+    const found = listMarkdownFilesRecursive(get3DInspectionDir(projectPath), 300).find(file => file.name === base);
+    return found ? found.full : direct || inspectionFile || '';
+}
+
+function readKeyValue(content, keys) {
+    for (const key of keys) {
+        const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const match = String(content || '').match(new RegExp(`-\\s*${escaped}\\s*[:：]\\s*(.+)`, 'i'));
+        if (match) return match[1].trim();
+    }
+    return '';
+}
+
+function truthyText(value) {
+    return /^(true|yes|예|필요|needed|required)$/i.test(String(value || '').trim());
+}
+
+function classifyImportAssetCategory(text) {
+    const low = String(text || '').toLowerCase();
+    if (/architecture|building|건물|구조물|modular/.test(low)) return 'architecture';
+    if (/environment|world|exterior|interior|환경|배경|월드/.test(low)) return 'environment';
+    if (/prop|소품|object/.test(low)) return 'prop';
+    if (/world/.test(low)) return 'world';
+    return 'art';
+}
+
+function extractImportFieldsFromCandidate(content) {
+    const title = String(content || '').match(/^#\s*(.+)$/m)?.[1]?.trim() || '';
+    const sourceModelFile = readKeyValue(content, ['source model file', 'sourceModelFile', 'sourceFile', '파일', '원본 모델', '출처 모델']);
+    const sourceInspection = readKeyValue(content, ['inspection file', 'sourceInspection', '검사 파일', 'inspection']);
+    const recommendedImportPath = readKeyValue(content, [
+        'recommended UE import path',
+        'UE5 추천 임포트 경로',
+        'ueImportPath',
+        '추천 적용 위치',
+        '추천 적용 경로',
+        '대상 경로'
+    ]);
+    const assetName = readKeyValue(content, ['assetName', 'asset name', 'segmentLabel', 'segmentName']) ||
+        path.basename(sourceModelFile || title || 'unknown', path.extname(sourceModelFile || title || 'unknown'));
+    const extRaw = (readKeyValue(content, ['extension', 'outputFormat']) || path.extname(sourceModelFile)).toLowerCase().replace(/^\*?/, '');
+    const extension = extRaw ? (extRaw.startsWith('.') ? extRaw : `.${extRaw}`) : '';
+    const inspectionVerdict = readKeyValue(content, ['verdict', 'inspectionVerdict', '검사 결과']) || 'REVIEW';
+    const applyReviewVerdict = readKeyValue(content, ['applyReviewVerdict', 'Apply Review', '판정']) || '';
+    const fileSizeMB = Number(readKeyValue(content, ['file size', 'fileSizeMB', '파일 크기']).replace(/[^\d.]/g, '') || 0);
+    const triangleCount = Number(readKeyValue(content, ['triangle count', 'triangleCount', 'targetPolyBudget', 'poly budget']).replace(/[^\d]/g, '') || 0);
+    const materialCount = Number(readKeyValue(content, ['material count', 'materialCount']).replace(/[^\d]/g, '') || 0);
+    const combined = `${title}\n${content}\n${recommendedImportPath}\n${sourceModelFile}`;
+    return {
+        sourceModelFile,
+        sourceInspection,
+        assetName,
+        fileSizeMB,
+        extension,
+        triangleCount,
+        materialCount,
+        inspectionVerdict,
+        applyReviewVerdict,
+        recommendedImportPath,
+        ueContentPath: recommendedImportPath,
+        assetCategory: classifyImportAssetCategory(combined),
+        collisionNeeded: truthyText(readKeyValue(content, ['collisionNeeded', 'collision', 'collision 필요'])),
+        lodNeeded: truthyText(readKeyValue(content, ['lodNeeded', 'lodRequired', 'LOD 필요'])),
+        naniteRecommended: truthyText(readKeyValue(content, ['naniteRecommended', 'Nanite 추천'])),
+        materialSetupNeeded: /material setup|머티리얼|material/i.test(content || ''),
+        textureCheckNeeded: /texture|텍스처/i.test(content || ''),
+        scaleCheckNeeded: !/scaleChecked:\s*true/i.test(content || ''),
+        pivotCheckNeeded: !/pivotChecked:\s*true/i.test(content || '')
+    };
+}
+
+function readApprovedApplyCandidate(projectPath, candidateFile) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    const queue = getApplyQueueSummary(projectPath).find(item =>
+        item.status === 'approved' && (
+            item.file === candidateFile ||
+            item.file.endsWith(candidateFile || '') ||
+            item.candidateFile === candidateFile ||
+            item.candidateFile.endsWith(candidateFile || '')
+        )
+    );
+    const candidatePath = findCandidatePath(projectPath, queue?.candidateFile || candidateFile || '');
+    const candidateContent = readTextIfExists(candidatePath);
+    const fields = extractImportFieldsFromCandidate(candidateContent);
+    const review = queue ? findApplyReviewForQueue(projectPath, queue.file) : null;
+    fields.applyReviewVerdict = review?.decision || fields.applyReviewVerdict || 'NONE';
+    const inspectionPath = findInspectionPath(projectPath, fields.sourceInspection);
+    const inspection = inspectionPath && fs.existsSync(inspectionPath)
+        ? read3DInspectionRecord(projectPath, path.basename(inspectionPath))
+        : { ok: false, error: 'inspection 없음' };
+    if (inspection.ok) {
+        fields.sourceInspection = inspectionPath;
+        fields.sourceModelFile = fields.sourceModelFile || inspection.sourceFile || inspection.filePath || '';
+        fields.assetName = fields.assetName || inspection.assetName || '';
+        fields.fileSizeMB = fields.fileSizeMB || inspection.fileSizeMB || 0;
+        fields.extension = fields.extension || `.${inspection.extension || ''}`;
+        fields.triangleCount = fields.triangleCount || inspection.triangleCount || 0;
+        fields.materialCount = fields.materialCount || inspection.materialCount || 0;
+        fields.inspectionVerdict = inspection.verdict || fields.inspectionVerdict;
+        fields.recommendedImportPath = fields.recommendedImportPath || inspection.ueImportPath || '';
+        fields.ueContentPath = fields.ueContentPath || fields.recommendedImportPath;
+        fields.collisionNeeded = fields.collisionNeeded || inspection.collisionNeeded;
+        fields.lodNeeded = fields.lodNeeded || inspection.lodNeeded;
+        fields.naniteRecommended = fields.naniteRecommended || inspection.naniteRecommended;
+        fields.scaleCheckNeeded = fields.scaleCheckNeeded && !inspection.scaleChecked;
+        fields.pivotCheckNeeded = fields.pivotCheckNeeded && !inspection.pivotChecked;
+    }
+    return {
+        ok: !!(queue && candidateContent),
+        queue,
+        candidateFile: candidatePath,
+        content: candidateContent,
+        fields,
+        inspection: inspection.ok ? inspection : null,
+        sourceInspection: inspectionPath
+    };
+}
+
+function listApprovedApplyCandidates(projectPath) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    return getApplyQueueSummary(projectPath)
+        .filter(item => item.status === 'approved')
+        .map(item => readApprovedApplyCandidate(projectPath, item.file));
+}
+
+function evaluateUE5ImportReadiness(candidate, inspection) {
+    const fields = candidate?.fields || candidate || {};
+    const sourceModel = normalizeProjectPath(candidate?.projectPath || DEFAULT_PROJECT_PATH, fields.sourceModelFile);
+    const sourceExists = !!(sourceModel && fs.existsSync(sourceModel));
+    const ext = (fields.extension || path.extname(fields.sourceModelFile || '')).toLowerCase();
+    const supported = ['.glb', '.gltf', '.obj', '.fbx'].includes(ext);
+    const blockReasons = [];
+    if (fields.applyReviewVerdict !== 'PASS') blockReasons.push(fields.applyReviewVerdict === 'NONE' ? 'apply review 없음' : 'apply review PASS 아님');
+    if ((inspection?.verdict || fields.inspectionVerdict) === 'REJECT') blockReasons.push('inspection REJECT');
+    if (!['PASS', 'REVIEW'].includes(inspection?.verdict || fields.inspectionVerdict || '')) blockReasons.push('inspection PASS/REVIEW 아님');
+    if (!sourceExists) blockReasons.push('source model 없음');
+    if (!fields.recommendedImportPath) blockReasons.push('import path 없음');
+    if (!supported) blockReasons.push('extension 미지원');
+    const warnings = [];
+    if (fields.lodNeeded) warnings.push('LOD 필요');
+    if (fields.collisionNeeded) warnings.push('collision 필요');
+    if (fields.naniteRecommended) warnings.push('Nanite 추천');
+    if (fields.materialSetupNeeded) warnings.push('material setup 필요');
+    if (fields.textureCheckNeeded) warnings.push('texture check 필요');
+    if (fields.scaleCheckNeeded) warnings.push('scale 확인 필요');
+    if (fields.pivotCheckNeeded) warnings.push('pivot 확인 필요');
+    return {
+        importStatus: blockReasons.length ? 'BLOCKED' : 'READY_FOR_IMPORT',
+        manifestMode: 'MANIFEST_ONLY',
+        blockReasons,
+        warnings,
+        sourceExists,
+        supportedExtension: supported
+    };
+}
+
+function createUE5ImportManifest(projectPath, candidateFile) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    const approved = readApprovedApplyCandidate(projectPath, candidateFile || '');
+    if (!approved.queue) return { ok: false, error: 'approved candidate만 Manifest 대상이 됩니다.' };
+    const readiness = evaluateUE5ImportReadiness({ ...approved, projectPath }, approved.inspection);
+    const fields = approved.fields;
+    const dir = getUE5ImportManifestDir(projectPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const now = new Date();
+    const manifestId = `ue5-import-${now.toISOString().replace(/[-:.TZ]/g, '').substring(0, 14)}-${path.basename(approved.candidateFile || 'candidate').replace(/[^a-zA-Z0-9가-힣_-]/g, '_').substring(0, 36)}`;
+    const fileName = `${manifestId}.ue5_import_manifest.md`;
+    const file = path.join(dir, fileName);
+    const md = `# UE5 Import Manifest
+
+- manifestId: ${manifestId}
+- createdAt: ${now.toISOString()}
+- sourceCandidate: ${approved.candidateFile || ''}
+- sourceInspection: ${fields.sourceInspection || approved.sourceInspection || ''}
+- sourceModelFile: ${fields.sourceModelFile || ''}
+- assetName: ${fields.assetName || ''}
+- fileSizeMB: ${fields.fileSizeMB || 0}
+- extension: ${fields.extension || ''}
+- triangleCount: ${fields.triangleCount || 0}
+- materialCount: ${fields.materialCount || 0}
+- inspectionVerdict: ${fields.inspectionVerdict || 'REVIEW'}
+- applyReviewVerdict: ${fields.applyReviewVerdict || 'NONE'}
+- recommendedImportPath: ${fields.recommendedImportPath || ''}
+- ueContentPath: ${fields.ueContentPath || fields.recommendedImportPath || ''}
+- assetCategory: ${fields.assetCategory || 'art'}
+- collisionNeeded: ${fields.collisionNeeded ? 'true' : 'false'}
+- lodNeeded: ${fields.lodNeeded ? 'true' : 'false'}
+- naniteRecommended: ${fields.naniteRecommended ? 'true' : 'false'}
+- materialSetupNeeded: ${fields.materialSetupNeeded ? 'true' : 'false'}
+- textureCheckNeeded: ${fields.textureCheckNeeded ? 'true' : 'false'}
+- scaleCheckNeeded: ${fields.scaleCheckNeeded ? 'true' : 'false'}
+- pivotCheckNeeded: ${fields.pivotCheckNeeded ? 'true' : 'false'}
+- manifestMode: MANIFEST_ONLY
+- importStatus: ${readiness.importStatus}
+- blockReasons: ${readiness.blockReasons.length ? readiness.blockReasons.join(' / ') : '없음'}
+- notes: ${readiness.warnings.length ? readiness.warnings.join(' / ') : '추가 경고 없음'}
+
+## Import Checklist
+${readiness.warnings.length ? readiness.warnings.map(w => `- [ ] ${w}`).join('\n') : '- [x] 경고 체크리스트 없음'}
+
+## Safety
+- actual UE5 Content copy: false
+- .uasset generation: false
+- Unreal Editor auto launch: false
+- allowRealApply=false 유지
+`;
+    safeWriteFile(file, md);
+    return { ok: true, file, fileName, manifestId, importStatus: readiness.importStatus, warnings: readiness.warnings, blockReasons: readiness.blockReasons };
+}
+
+function createUE5ImportManifestsFromApproved(projectPath) {
+    const approved = listApprovedApplyCandidates(projectPath);
+    const results = approved.map(item => createUE5ImportManifest(projectPath, item.queue?.file || item.candidateFile || ''));
+    const readyCount = results.filter(r => r.ok && r.importStatus === 'READY_FOR_IMPORT').length;
+    const blockedCount = results.filter(r => !r.ok || r.importStatus === 'BLOCKED').length;
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        recordAgentMemory(vp, {
+            task: 'UE5 Import Manifest 생성',
+            decision: `READY_FOR_IMPORT ${readyCount} / BLOCKED ${blockedCount}`,
+            result: results.flatMap(r => r.blockReasons || []).slice(0, 5).join(' | ') || 'block reason 없음'
+        });
+        recordDecision(vp, 'UE5 실제 복사 전 Import Manifest를 먼저 생성한다', 'V80 manifest-only workflow');
+        recordDecision(vp, 'allowRealApply=false 상태에서는 Manifest만 생성한다', 'Content 복사와 .uasset 생성 금지');
+        recordDecision(vp, 'approved candidate만 Manifest 대상이 된다', 'Apply Review PASS 및 approved queue 이후 단계');
+    } catch { /* 비중단 */ }
+    return { ok: true, total: results.length, readyCount, blockedCount, results };
+}
+
+function readUE5ImportManifests(projectPath) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    return listMarkdownFilesRecursive(getUE5ImportManifestDir(projectPath), 300).map(file => {
+        const content = readTextIfExists(file.full);
+        return {
+            file: file.full,
+            manifestId: readKeyValue(content, ['manifestId']),
+            assetName: readKeyValue(content, ['assetName']),
+            importStatus: readKeyValue(content, ['importStatus']) || 'MANIFEST_ONLY',
+            blockReasons: readKeyValue(content, ['blockReasons']),
+            notes: readKeyValue(content, ['notes']),
+            mtime: file.mtime
+        };
+    });
+}
+
+function generateUE5ImportManifestReport(projectPath) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    const approved = listApprovedApplyCandidates(projectPath);
+    const manifests = readUE5ImportManifests(projectPath);
+    const ready = manifests.filter(m => m.importStatus === 'READY_FOR_IMPORT');
+    const blocked = manifests.filter(m => m.importStatus === 'BLOCKED');
+    const warning = manifests.filter(m => m.notes && m.notes !== '추가 경고 없음').length;
+    const blockReasons = blocked.flatMap(m => String(m.blockReasons || '').split('/').map(s => s.trim()).filter(Boolean));
+    const report = `# UE5 Import Manifest Report
+
+- 생성 시각: ${new Date().toLocaleString('ko-KR')}
+- approved candidate 수: ${approved.length}
+- manifest 수: ${manifests.length}
+- READY_FOR_IMPORT 수: ${ready.length}
+- BLOCKED 수: ${blocked.length}
+- WARNING 수: ${warning}
+
+## 최근 Manifest
+| 상태 | 에셋 | Manifest | Block Reasons |
+| --- | --- | --- | --- |
+${manifests.length ? manifests.slice(0, 30).map(m => `| ${m.importStatus} | ${(m.assetName || '').replace(/\|/g, '/')} | ${path.basename(m.file)} | ${(m.blockReasons || '').replace(/\|/g, '/')} |`).join('\n') : '| 없음 | - | - | - |'}
+
+## 주요 Block Reason
+${blockReasons.length ? Array.from(new Set(blockReasons)).map(r => `- ${r}`).join('\n') : '- 없음'}
+
+## Safety
+- 실제 UE5 Content 복사 없음
+- 실제 .uasset 생성 없음
+- UE5 Editor 자동 실행 없음
+- MANIFEST_ONLY 단계
+`;
+    const file = getUE5ImportManifestReportFile(projectPath);
+    safeWriteFile(file, report);
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        recordAgentMemory(vp, {
+            task: 'UE5 Import Manifest Report 생성',
+            decision: `READY_FOR_IMPORT ${ready.length} / BLOCKED ${blocked.length}`,
+            result: blockReasons.slice(0, 5).join(' | ') || 'block reason 없음'
+        });
+    } catch { /* 비중단 */ }
+    return { ok: true, file, report, approvedCount: approved.length, manifestCount: manifests.length, readyCount: ready.length, blockedCount: blocked.length, warningCount: warning };
 }
 
 function getAgentHandoffPlan(taskLine, quality) {
@@ -3993,7 +4512,7 @@ function startAgents() {
     }
 
     isRunning = true;
-    sendLog('=== ToribatAgent V21 공유 지식 + 자동 분석 모드 시작 ===', 'success');
+    sendLog('=== ToribatAgent V60 시작 ===', 'success');
     sendLog(`프로젝트: ${config.projectPath}`, 'info');
     sendLog(`OpenAI 키: ${config.openaiKey ? '✓ 있음' : '✗ 없음'}`, config.openaiKey ? 'info' : 'warn');
     sendLog(`Anthropic 키: ${config.anthropicKey ? '✓ 있음' : '✗ 없음'}`, config.anthropicKey ? 'info' : 'warn');
@@ -4003,7 +4522,7 @@ function startAgents() {
 
     sendToRenderer('status-change', { running: true });
     updateTrayMenu();
-    try { new Notification({ title: '🧙 ToribatAgent V21', body: '태스크 생성 + 프로젝트 분석 + Pinned Knowledge 가동!' }).show(); } catch {}
+    try { new Notification({ title: '🧙 ToribatAgent V60', body: `프로젝트: ${config.projectPath}` }).show(); } catch {}
     runAgentCycle(config);
 }
 
@@ -4028,6 +4547,972 @@ function sendLog(msg, type = '') {
     const time = new Date().toLocaleTimeString('ko-KR');
     console.log(`[${time}] ${msg}`);
     sendToRenderer('log', { msg, type, time });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V62 § Existing Project Scanner — scanExistingProject()
+// ═══════════════════════════════════════════════════════════════
+
+function getExistingProjectInventoryFile(projectPath) {
+    return path.join(projectPath || DEFAULT_PROJECT_PATH, 'reports', 'existing_project_inventory.md');
+}
+
+const KNOWN_SYSTEMS = [
+    { id: 'magic',     label: 'Magic System',     patterns: [/MagicComponent|UMagic|SpellSystem|SpellCast/i] },
+    { id: 'quest',     label: 'Quest System',      patterns: [/QuestManager|QuestSystem|UQuest|QuestState/i] },
+    { id: 'dialogue',  label: 'Dialogue System',   patterns: [/DialogueSystem|DialogueComponent|UDialogue|FDialogue/i] },
+    { id: 'save',      label: 'Save System',        patterns: [/SaveGame|SaveLoad|USaveGame|TMSSave/i] },
+    { id: 'character', label: 'Character System',   patterns: [/ToribatCharacter|ACharacter|PlayerCharacter|APlayer/i] },
+    { id: 'enemy',     label: 'Enemy AI',           patterns: [/ABasicEnemy|EnemyAI|AIController|BehaviorTree/i] },
+    { id: 'inventory', label: 'Inventory System',   patterns: [/InventoryComponent|UInventory|FInventory/i] },
+    { id: 'minimap',   label: 'Minimap System',     patterns: [/MinimapSubsystem|MinimapWidget|MinimapTracker/i] },
+    { id: 'daynight',  label: 'Day/Night Cycle',    patterns: [/DayNightCycle|DayNight|UDayNight/i] }
+];
+
+function extractClassesFromSource(fileContent) {
+    const classes = [];
+    const uclassRe = /UCLASS[^)]*\)\s*\nclass\s+\w+_API\s+(\w+)/g;
+    const plainClassRe = /^class\s+(?:\w+_API\s+)?(\w+)\s*(?::|{)/gm;
+    const structRe = /USTRUCT[^)]*\)\s*\nstruct\s+(?:\w+_API\s+)?(\w+)/g;
+    const enumRe = /UENUM[^)]*\)\s*\n?enum\s+class\s+(\w+)/g;
+    let m;
+    for (const re of [uclassRe, plainClassRe, structRe, enumRe]) {
+        re.lastIndex = 0;
+        while ((m = re.exec(fileContent)) !== null) {
+            const name = m[1];
+            if (name && name !== 'public' && name !== 'private' && name !== 'protected') {
+                classes.push(name);
+            }
+        }
+    }
+    return [...new Set(classes)];
+}
+
+function extractFunctionsFromHeader(fileContent) {
+    const funcs = [];
+    const re = /UFUNCTION[^)]*\)\s*\n?\s*(?:virtual\s+)?[\w:<>*&\s]+\s+(\w+)\s*\(/g;
+    let m;
+    while ((m = re.exec(fileContent)) !== null) {
+        if (m[1] && !['public', 'private', 'protected'].includes(m[1])) {
+            funcs.push(m[1]);
+        }
+    }
+    return [...new Set(funcs)];
+}
+
+function scanExistingProject(projectPath) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    const ue = collectUEProjectEvidence(projectPath);
+
+    const sourceDetails = [];
+    for (const file of ue.sourceCodeFiles) {
+        if (!/\.(h|hpp)$/i.test(file.full)) continue;
+        let content = '';
+        try { content = fs.readFileSync(file.full, 'utf8'); } catch { continue; }
+        const classes = extractClassesFromSource(content);
+        const functions = extractFunctionsFromHeader(content);
+        const rel = path.relative(projectPath, file.full).replace(/\\/g, '/');
+        sourceDetails.push({ file: rel, classes, functions, size: file.size });
+    }
+
+    const allClassNames = sourceDetails.flatMap(d => d.classes);
+    const allFilePaths = ue.sourceCodeFiles.map(f => f.full).join('\n');
+
+    const systemRows = KNOWN_SYSTEMS.map(sys => {
+        const matchedFiles = sourceDetails.filter(d =>
+            sys.patterns.some(p => p.test(d.classes.join(' ')) || p.test(d.file))
+        );
+        const exists = matchedFiles.length > 0;
+        return {
+            ...sys,
+            exists,
+            files: matchedFiles.map(d => d.file),
+            classes: matchedFiles.flatMap(d => d.classes.filter(c => sys.patterns.some(p => p.test(c))))
+        };
+    });
+
+    const blueprintFiles = ue.contentFiles.filter(f => /\.uasset$/i.test(f.full));
+    const mapFiles = ue.mapFiles;
+
+    const implementedSystems = systemRows.filter(s => s.exists);
+    const missingSystems = systemRows.filter(s => !s.exists);
+
+    const report = `# 기존 프로젝트 인벤토리 (Existing Project Inventory)
+
+- 생성 시각: ${new Date().toLocaleString('ko-KR')}
+- 프로젝트 경로: ${projectPath}
+- .uproject 존재: ${ue.hasUProject ? '예' : '아니오'}
+- 헤더 파일 수: ${ue.sourceCodeFiles.filter(f => /\.h$/i.test(f.full)).length}
+- 소스 파일 수: ${ue.sourceCodeFiles.filter(f => /\.cpp$/i.test(f.full)).length}
+- 블루프린트 (.uasset): ${blueprintFiles.length}
+- 맵 (.umap): ${mapFiles.length}
+
+## 감지된 클래스 목록
+
+${sourceDetails.map(d =>
+    d.classes.length ? `### ${d.file}\n${d.classes.map(c => `- \`${c}\``).join('\n')}` : ''
+).filter(Boolean).join('\n\n')}
+
+## 시스템별 구현 현황
+
+| 시스템 | 상태 | 파일 | 클래스 |
+| --- | --- | --- | --- |
+${systemRows.map(s =>
+    `| ${s.label} | ${s.exists ? '✅ 구현됨' : '❌ 없음'} | ${s.files.join(', ') || '-'} | ${s.classes.join(', ') || '-'} |`
+).join('\n')}
+
+## 구현된 시스템 (${implementedSystems.length}개) — 확장 우선 대상
+
+${implementedSystems.map(s => `- **${s.label}**: ${s.files.join(', ')} → 클래스: ${s.classes.join(', ')}`).join('\n') || '- 없음'}
+
+## 미구현 시스템 (${missingSystems.length}개) — 신규 생성 허용
+
+${missingSystems.map(s => `- **${s.label}**: 신규 생성 허용`).join('\n') || '- 없음'}
+
+## 확장 가이드
+- 구현된 시스템에 기능 추가 시: 확장 후보(Extension Candidate)를 생성하라
+- 미구현 시스템: 신규 apply_candidate를 생성해도 된다
+- 동일 클래스를 새로 만드는 것은 REJECT 처리된다
+`;
+    safeWriteFile(getExistingProjectInventoryFile(projectPath), report);
+    generatedFiles++;
+    return { report, sourceDetails, systemRows, implementedSystems, missingSystems, allClassNames, blueprintCount: blueprintFiles.length, mapCount: mapFiles.length };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V63 § Source Awareness Engine — findExistingImplementation()
+// ═══════════════════════════════════════════════════════════════
+
+function findExistingImplementation(projectPath, systemName) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    const ue = collectUEProjectEvidence(projectPath);
+    const searchRe = new RegExp(systemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+    const matchedFiles = [];
+    const matchedClasses = [];
+
+    for (const file of ue.sourceCodeFiles) {
+        if (!searchRe.test(file.full)) continue;
+        let content = '';
+        try { content = fs.readFileSync(file.full, 'utf8'); } catch { continue; }
+        const classes = extractClassesFromSource(content);
+        const functions = extractFunctionsFromHeader(content);
+        matchedFiles.push({
+            file: path.relative(projectPath, file.full).replace(/\\/g, '/'),
+            abs: file.full,
+            classes,
+            functions
+        });
+        matchedClasses.push(...classes);
+    }
+
+    // 파일명 매치 없으면 클래스 내용에서도 검색
+    if (!matchedFiles.length) {
+        for (const file of ue.sourceCodeFiles) {
+            if (!/\.(h|hpp)$/i.test(file.full)) continue;
+            let content = '';
+            try { content = fs.readFileSync(file.full, 'utf8'); } catch { continue; }
+            if (!searchRe.test(content)) continue;
+            const classes = extractClassesFromSource(content);
+            const functions = extractFunctionsFromHeader(content);
+            matchedFiles.push({
+                file: path.relative(projectPath, file.full).replace(/\\/g, '/'),
+                abs: file.full,
+                classes,
+                functions
+            });
+            matchedClasses.push(...classes);
+        }
+    }
+
+    const found = matchedFiles.length > 0;
+    return {
+        found,
+        systemName,
+        files: matchedFiles,
+        classes: [...new Set(matchedClasses)],
+        recommendation: found ? 'extend' : 'create',
+        message: found
+            ? `기존 구현 발견: ${matchedFiles.map(f => f.file).join(', ')} — 신규 생성 금지, 확장 후보를 생성하라`
+            : `기존 구현 없음 — 신규 생성 허용`
+    };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V64 § Duplicate Prevention Gate — validateCandidateAgainstProject()
+// ═══════════════════════════════════════════════════════════════
+
+function validateCandidateAgainstProject(projectPath, candidateFile) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+
+    if (!candidateFile || !fs.existsSync(candidateFile)) {
+        return { decision: 'REJECT', reason: '후보 파일 없음', conflicts: [], existingFiles: [] };
+    }
+
+    const content = readTextIfExists(candidateFile);
+    const targetRel = parseTargetPath(content);
+
+    // 1. 후보 내 클래스명 추출
+    const candidateClasses = extractClassesFromSource(content);
+    const targetBasename = targetRel ? path.basename(targetRel, path.extname(targetRel)) : '';
+
+    // 2. 프로젝트 Source 전체에서 충돌 검사
+    const ue = collectUEProjectEvidence(projectPath);
+    const conflicts = [];
+    const existingFiles = [];
+
+    for (const file of ue.sourceCodeFiles) {
+        let fileContent = '';
+        try { fileContent = fs.readFileSync(file.full, 'utf8'); } catch { continue; }
+        const fileClasses = extractClassesFromSource(fileContent);
+        const fileRel = path.relative(projectPath, file.full).replace(/\\/g, '/');
+
+        // 동일 클래스명 충돌
+        const classConflicts = candidateClasses.filter(c => fileClasses.includes(c));
+        if (classConflicts.length) {
+            conflicts.push({ type: 'DUPLICATE_CLASS', file: fileRel, classes: classConflicts });
+            existingFiles.push(fileRel);
+        }
+
+        // 대상 경로 파일이 이미 존재
+        if (targetRel) {
+            const targetAbs = path.isAbsolute(targetRel) ? targetRel : path.join(projectPath, targetRel);
+            if (file.full.toLowerCase() === targetAbs.toLowerCase()) {
+                conflicts.push({ type: 'FILE_EXISTS', file: fileRel, classes: fileClasses });
+                if (!existingFiles.includes(fileRel)) existingFiles.push(fileRel);
+            }
+        }
+    }
+
+    // 3. 시스템 의미 충돌 검사 (파일명 키워드 → 기존 구현 파일 존재 여부)
+    const SYSTEM_CONFLICT_MAP = [
+        { keywords: ['dialogue', 'dialog'],         existing: ['DialogueSystem', 'DialogueComponent'] },
+        { keywords: ['quest', 'queststate'],         existing: ['QuestManager', 'QuestSystem'] },
+        { keywords: ['magic', 'spell'],              existing: ['MagicComponent'] },
+        { keywords: ['save', 'savegame'],            existing: ['SaveLoadSubsystem', 'TMSSaveGame'] },
+        { keywords: ['inventory'],                   existing: ['InventoryComponent'] },
+        { keywords: ['minimap'],                     existing: ['MinimapSubsystem', 'MinimapWidget', 'MinimapTracker'] },
+        { keywords: ['daynight', 'day_night', 'daynightcycle'], existing: ['DayNightCycleManager'] }
+    ];
+    const candidateBasename = path.basename(candidateFile || '').toLowerCase();
+    const semanticConflicts = [];
+    for (const rule of SYSTEM_CONFLICT_MAP) {
+        const keywordMatch = rule.keywords.some(kw => candidateBasename.includes(kw));
+        if (!keywordMatch) continue;
+        for (const file of ue.sourceCodeFiles) {
+            const fileRel = path.relative(projectPath, file.full).replace(/\\/g, '/');
+            if (rule.existing.some(ex => fileRel.toLowerCase().includes(ex.toLowerCase()))) {
+                semanticConflicts.push({ type: 'SYSTEM_EXISTS', file: fileRel, keyword: rule.keywords[0] });
+                if (!existingFiles.includes(fileRel)) existingFiles.push(fileRel);
+            }
+        }
+    }
+
+    let decision, reason;
+    if (conflicts.some(c => c.type === 'DUPLICATE_CLASS')) {
+        decision = 'REJECT';
+        const dupes = conflicts.filter(c => c.type === 'DUPLICATE_CLASS').flatMap(c => c.classes).join(', ');
+        reason = `동일 클래스 이미 존재: ${dupes} — 확장 후보(Extension Candidate)로 전환 필요`;
+    } else if (conflicts.some(c => c.type === 'FILE_EXISTS')) {
+        decision = 'REVIEW';
+        reason = `대상 파일 이미 존재: ${targetRel} — 내용 검토 후 병합 또는 덮어쓰기 결정 필요`;
+    } else if (semanticConflicts.length) {
+        decision = 'REVIEW';
+        const files = [...new Set(semanticConflicts.map(c => c.file))].join(', ');
+        reason = `동일 시스템 구현 이미 존재: ${files} — 신규 생성 금지, 확장 후보로 전환 검토 필요`;
+        conflicts.push(...semanticConflicts);
+    } else {
+        return { decision: 'PASS', reason: '충돌 없음 — 신규 생성 허용', conflicts, existingFiles, candidateFile, targetRel, candidateClasses, semanticConflicts };
+    }
+
+    return { decision, reason, conflicts, existingFiles, candidateFile, targetRel, candidateClasses, semanticConflicts };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V65 § Safe Extension Workflow — generateExtensionCandidate()
+// ═══════════════════════════════════════════════════════════════
+
+function generateExtensionCandidate(projectPath, systemName, extensionSpec = {}) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    const existing = findExistingImplementation(projectPath, systemName);
+
+    if (!existing.found) {
+        return { ok: false, reason: `기존 구현 없음 — 신규 후보를 생성하라`, systemName };
+    }
+
+    const primaryFile = existing.files[0];
+    let existingContent = '';
+    try { existingContent = fs.readFileSync(primaryFile.abs, 'utf8'); } catch {}
+    const existingClasses = primaryFile.classes.join(', ');
+    const existingFunctions = primaryFile.functions.join(', ');
+
+    const addFunctions = extensionSpec.addFunctions || [];
+    const addMembers = extensionSpec.addMembers || [];
+    const description = extensionSpec.description || `${systemName} 기능 확장`;
+
+    const diff = addFunctions.map(f => `+    UFUNCTION(BlueprintCallable) void ${f}();`).join('\n') +
+                 (addMembers.length ? '\n' + addMembers.map(m => `+    ${m}`).join('\n') : '');
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+    const filename = `${timestamp}_${systemName}_Extension.candidate.md`;
+    const dir = path.join(getApplyCandidatesDir(projectPath), 'code');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const filePath = path.join(dir, filename);
+
+    const content = `# 확장 후보 — ${systemName} Extension
+
+- 생성 시각: ${new Date().toLocaleString('ko-KR')}
+- 유형: Extension (신규 생성 아님)
+- 대상 시스템: ${systemName}
+- 기존 파일: ${primaryFile.file}
+- 기존 클래스: ${existingClasses}
+- 설명: ${description}
+
+## 기존 구현 요약
+
+기존 파일: \`${primaryFile.file}\`
+기존 UFUNCTION: ${existingFunctions || '(없음)'}
+
+## 추가할 함수
+
+${addFunctions.length ? addFunctions.map(f => `- \`${f}()\``).join('\n') : '- (extensionSpec에서 지정 필요)'}
+
+## 추가할 멤버
+
+${addMembers.length ? addMembers.map(m => `- \`${m}\``).join('\n') : '- (extensionSpec에서 지정 필요)'}
+
+## 변경 Diff
+
+\`\`\`diff
+// ${primaryFile.file} 에 추가
+${diff || '// 추가할 내용을 extensionSpec으로 지정하라'}
+\`\`\`
+
+## 영향 범위
+
+- 기존 클래스 수정 (${existingClasses}) — 기존 기능에 영향 없도록 추가 전용으로 작성
+- 기존 .cpp에 구현 추가 필요
+
+## 테스트 방법
+
+1. 기존 기능이 그대로 동작하는지 PIE에서 확인
+2. 추가된 함수가 Blueprint에서 호출 가능한지 확인
+3. 컴파일 오류 없는지 확인
+
+## 적용 방법
+
+1. 기존 파일 \`${primaryFile.file}\`을 읽고 public 섹션에 추가 함수를 삽입한다
+2. 대응하는 .cpp 파일에 함수 본문을 추가한다
+3. allowRealApply=true 후 promoteCandidateToProject() 실행
+
+## 상태
+- 현재: 상태2 — 확장 후보
+- 상태3 조건: 기존 파일에 실제 추가 적용
+- 상태4 조건: PIE 실행 확인 + Reviewer PASS + QA PASS
+`;
+    safeWriteFile(filePath, content);
+    generatedFiles++;
+    return { ok: true, filePath, systemName, existingFile: primaryFile.file, existingClasses, diff };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V69 § Asset Segmentation Rules
+// ═══════════════════════════════════════════════════════════════
+
+const ASSET_SEGMENTATION_RULES_CONTENT = `# 에셋 분해 규칙 (Asset Segmentation Rules)
+# ToribatAgent V69 — Image-to-3D Pipeline
+
+## 핵심 원칙
+
+> 마법학교 내부/외부 전체를 하나의 3D 모델로 만들지 마라.
+> 이미지는 재사용 가능한 에셋 단위로 분해해야 한다.
+
+## 분해 규칙
+
+| 대상 | 규칙 | 이유 |
+| --- | --- | --- |
+| 큰 공간(홀/복도/교실) | 통짜 모델 금지 | 수정 어려움, LOD/충돌 불가 |
+| 바닥 | 타일/패턴 모듈 단위 | 반복 배치로 공간 조립 |
+| 벽면 | 벽면 패널 모듈 | 재사용 + 높이 조절 가능 |
+| 기둥 | 독립 에셋 | 위치 자유 배치 |
+| 아치/문틀 | 독립 에셋 | 다양한 문 조합 가능 |
+| 문/창문 | 독립 에셋 + 애니메이션 대비 | 개폐 로직 분리 |
+| 계단 | 세그먼트 단위 (3~5칸) | 길이 조합 가능 |
+| 책장/책상 | 소품(prop) | 인테리어 자유 배치 |
+| 촛대/조명 | 소품(prop) | VFX 소켓 분리 |
+| 천장 보 | 독립 구조물 | 높이/방향 자유 |
+| 난간 | 모듈 단위 | 길이 조합 가능 |
+| 장식 조각 | 선택적 소품 | 성능 예산 여유 시 추가 |
+| 마법 장치 | 독립 소품 + 소켓 | VFX/애니 분리 |
+| 캐릭터/생물 | 별도 캐릭터 파이프라인 | 스켈레탈 메시 분리 |
+| VFX/파티클 | 메시와 완전 분리 | 나이아가라 시스템 사용 |
+| 대형 영웅 에셋 | floor/wall/pillar/door/window/ceiling/prop 6분류 | 관리 가능한 단위 |
+
+## 카테고리 분류
+
+- **structural**: floor, wall, ceiling, pillar, arch, stair
+- **door_window**: door, window, gate, porthole
+- **prop**: bookshelf, desk, candlestick, bench, crate, torch
+- **device**: magic_device, lever, switch, puzzle_object
+- **exterior**: facade, tower, courtyard_wall, gate_arch
+- **decoration**: mural, rune_carving, tapestry, banner
+
+## 성능 기준
+
+| 에셋 유형 | 권장 폴리곤 수 | 텍스처 | LOD | Nanite |
+| --- | --- | --- | --- | --- |
+| 소품(prop) | 500~5,000 tris | 1K~2K | 불필요 | 불필요 |
+| 중형 구조물 | 5,000~25,000 tris | 2K | 권장 | 선택 |
+| 대형 구조물 | 25,000~80,000 tris | 2K~4K | 필수 | 권장 |
+| 대형 영웅 에셋 | 80,000 tris 이하 | 4K 허용 | 필수 | 권장 |
+
+## 경고/거부 기준
+
+| 조건 | 판정 |
+| --- | --- |
+| 100,000 tris 초과 예상 | WARNING |
+| 200,000 tris 초과 예상 | REJECT 후보 |
+| 내부 전체를 하나의 모델로 생성 | REJECT |
+| 배경/카메라가 메시에 포함 | REJECT |
+| 텍스처 없음 | REVIEW |
+| 너무 단순 (100 tris 미만) | REVIEW |
+| negativePrompt 없음 | REJECT |
+| poly budget 없음 | REVIEW |
+| 4K 텍스처 남발 (소품에 4K) | WARNING |
+
+## negativePrompt 필수 문구
+
+3D 생성 프롬프트에 반드시 포함해야 할 문구:
+
+> entire room, full building, full interior, full school, character, person, excessive ornaments, ultra high poly, broken geometry, merged walls, baked camera angle, background scenery, sky, landscape
+
+## UE5 임포트 기준
+
+- 권장 출력 형식: .fbx (UE5 호환), .glb (게임툴 호환), .obj (범용)
+- 최우선: .fbx
+- Pivot: 에셋 하단 중앙 기준
+- 스케일: 1 UE unit = 1 cm 기준
+- 충돌: UCX_ 접두사 단순 충돌 메시 별도 제공
+- 머티리얼: PBR (BaseColor, Normal, ORM 채널)
+`;
+
+function ensureAssetSegmentationRules(projectPath) {
+    const f = getAssetSegmentationRulesFile(projectPath);
+    if (!fs.existsSync(f)) {
+        safeWriteFile(f, ASSET_SEGMENTATION_RULES_CONTENT);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V67 § Image Asset Intake — scanAssetInputImages()
+// ═══════════════════════════════════════════════════════════════
+
+const IMAGE_TYPE_RULES = [
+    { keywords: ['interior', 'inside', 'hall', 'room', 'classroom', 'corridor', 'indoor', '내부', '홀', '교실', '복도'], type: 'interior' },
+    { keywords: ['exterior', 'outside', 'facade', 'courtyard', 'tower', 'gate', '외부', '외관', '안뜰', '탑'], type: 'exterior' },
+    { keywords: ['prop', 'object', 'item', 'furniture', 'desk', 'chair', 'shelf', 'candle', '소품', '가구'], type: 'prop' },
+    { keywords: ['character', 'person', 'npc', 'wizard', 'student', '캐릭터', '인물', '학생', '마법사'], type: 'character' },
+    { keywords: ['creature', 'monster', 'beast', 'animal', '생물', '몬스터'], type: 'creature' }
+];
+
+function detectImageType(filename) {
+    const lower = filename.toLowerCase();
+    for (const rule of IMAGE_TYPE_RULES) {
+        if (rule.keywords.some(kw => lower.includes(kw))) return rule.type;
+    }
+    return 'unknown';
+}
+
+function needsDecomposition(imageType) {
+    return ['interior', 'exterior'].includes(imageType);
+}
+
+function scanAssetInputImages(projectPath) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    ensureAssetSegmentationRules(projectPath);
+    const imagesDir = path.join(getAssetInputsDir(projectPath), 'images');
+    const analyzedDir = getAssetAnalyzedDir(projectPath);
+
+    let allFiles = [];
+    try { allFiles = fs.readdirSync(imagesDir); } catch { allFiles = []; }
+
+    const supported = allFiles.filter(f => /\.(png|jpg|jpeg|webp)$/i.test(f));
+    const results = [];
+
+    for (const filename of supported) {
+        const imagePath = path.join(imagesDir, filename);
+        const baseName = path.basename(filename, path.extname(filename));
+        const ext = path.extname(filename).toLowerCase().replace('.', '');
+        const imageType = detectImageType(filename);
+        const decompose = needsDecomposition(imageType);
+        const outFile = path.join(analyzedDir, `${baseName}.intake.md`);
+
+        let stat = null;
+        try { stat = fs.statSync(imagePath); } catch {}
+
+        const content = `# Image Intake — ${filename}
+
+- 생성 시각: ${new Date().toLocaleString('ko-KR')}
+- 원본 이미지 경로: ${imagePath}
+- 파일명: ${filename}
+- 확장자: ${ext}
+- 파일 크기: ${stat ? Math.round(stat.size / 1024) + ' KB' : '알 수 없음'}
+- 이미지 종류: ${imageType}
+- 분해 필요: ${decompose ? '예 (interior/exterior → 에셋 단위 분해 필수)' : '아니오'}
+- 목표: UE5 재사용 가능한 에셋 단위 3D 모델 생성
+- 게임 내 사용 위치: ToribatMagicSchool/${imageType === 'interior' ? 'Content/Meshes/Interior' : imageType === 'exterior' ? 'Content/Meshes/Exterior' : imageType === 'prop' ? 'Content/Meshes/Props' : 'Content/Meshes/Misc'}
+- 처리 상태: intake_registered
+- dryRun: true
+- 주의: ${decompose ? '전체 이미지를 하나의 3D 모델로 만들지 마라. 반드시 에셋 단위로 분해할 것.' : '단일 에셋 이미지 — 직접 3D 생성 가능'}
+`;
+        safeWriteFile(outFile, content);
+        generatedFiles++;
+        results.push({ filename, imagePath, imageType, decompose, intakeFile: outFile });
+    }
+
+    sendLog(`Image Intake: ${supported.length}개 이미지 등록 (분해 필요: ${results.filter(r => r.decompose).length}개)`, 'success');
+    return { images: results, count: supported.length, imagesDir };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V68 § Image Decomposition Planner — generateImageDecompositionPlan()
+// ═══════════════════════════════════════════════════════════════
+
+const DECOMPOSITION_PRESETS = {
+    interior: {
+        description: '마법학교 내부 공간 이미지',
+        wholeModelForbiddenReason: '내부 전체를 하나의 메시로 만들면 수정 불가, LOD 관리 불가, UE5 레벨 제작 부적합, 성능 악화',
+        segments: [
+            { id: 'floor_tile_module',  label: '바닥 타일 모듈',    category: 'structural', priority: 1, tool: 'Blender', format: 'fbx', polyBudget: 200,    texture: '2K', lod: false, nanite: false, collision: true,  reuse: '높음', performanceRisk: '낮음' },
+            { id: 'wall_panel_module',  label: '벽면 패널 모듈',    category: 'structural', priority: 2, tool: 'Blender', format: 'fbx', polyBudget: 500,    texture: '2K', lod: false, nanite: false, collision: true,  reuse: '높음', performanceRisk: '낮음' },
+            { id: 'stone_pillar',       label: '석조 기둥',          category: 'structural', priority: 3, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 3000, texture: '2K', lod: true,  nanite: false, collision: true,  reuse: '높음', performanceRisk: '낮음' },
+            { id: 'arch_module',        label: '아치 모듈',          category: 'structural', priority: 4, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 4000, texture: '2K', lod: true,  nanite: false, collision: true,  reuse: '높음', performanceRisk: '낮음' },
+            { id: 'wooden_door',        label: '목재 문',            category: 'door_window', priority: 5, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 2000, texture: '2K', lod: false, nanite: false, collision: true,  reuse: '높음', performanceRisk: '낮음' },
+            { id: 'stained_window',     label: '스테인드 창문',      category: 'door_window', priority: 6, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 1500, texture: '2K', lod: false, nanite: false, collision: false, reuse: '높음', performanceRisk: '낮음' },
+            { id: 'ceiling_beam',       label: '천장 보',            category: 'structural', priority: 7, tool: 'Blender', format: 'fbx', polyBudget: 800,   texture: '2K', lod: false, nanite: false, collision: false, reuse: '중간', performanceRisk: '낮음' },
+            { id: 'torch_holder',       label: '촛대/횃불대',        category: 'prop',       priority: 8, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 1000, texture: '1K', lod: false, nanite: false, collision: false, reuse: '높음', performanceRisk: '낮음' },
+            { id: 'stair_segment',      label: '계단 세그먼트',      category: 'structural', priority: 9, tool: 'Blender', format: 'fbx', polyBudget: 600,   texture: '2K', lod: false, nanite: false, collision: true,  reuse: '높음', performanceRisk: '낮음' },
+            { id: 'bookshelf',          label: '책장',               category: 'prop',       priority: 10, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 3000, texture: '2K', lod: false, nanite: false, collision: true,  reuse: '높음', performanceRisk: '낮음' },
+            { id: 'stone_bench',        label: '석조 벤치',          category: 'prop',       priority: 11, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 1500, texture: '2K', lod: false, nanite: false, collision: true,  reuse: '높음', performanceRisk: '낮음' },
+            { id: 'magic_device',       label: '마법 장치',          category: 'device',     priority: 12, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 4000, texture: '2K', lod: false, nanite: false, collision: true,  reuse: '중간', performanceRisk: '중간' }
+        ]
+    },
+    exterior: {
+        description: '마법학교 외부/외관 이미지',
+        wholeModelForbiddenReason: '외관 전체를 하나의 메시로 만들면 내부 레벨 제작 불가, 조명/머티리얼 관리 불가',
+        segments: [
+            { id: 'facade_wall',        label: '외벽 패널',          category: 'exterior',   priority: 1, tool: 'Blender',   format: 'fbx', polyBudget: 1000, texture: '2K', lod: true,  nanite: true,  collision: true,  reuse: '높음', performanceRisk: '낮음' },
+            { id: 'tower_section',      label: '탑 섹션',            category: 'exterior',   priority: 2, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 8000, texture: '2K', lod: true,  nanite: true,  collision: true,  reuse: '중간', performanceRisk: '중간' },
+            { id: 'gate_arch',          label: '정문 아치',          category: 'exterior',   priority: 3, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 5000, texture: '2K', lod: true,  nanite: false, collision: true,  reuse: '중간', performanceRisk: '낮음' },
+            { id: 'courtyard_floor',    label: '안뜰 바닥',          category: 'structural', priority: 4, tool: 'Blender',   format: 'fbx', polyBudget: 300,  texture: '2K', lod: false, nanite: false, collision: true,  reuse: '높음', performanceRisk: '낮음' },
+            { id: 'decorative_trim',    label: '장식 트림',          category: 'decoration', priority: 5, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 2000, texture: '2K', lod: false, nanite: false, collision: false, reuse: '높음', performanceRisk: '낮음' }
+        ]
+    },
+    prop: {
+        description: '단일 소품/오브젝트 이미지',
+        wholeModelForbiddenReason: '해당 없음 (단일 소품은 직접 생성 허용)',
+        segments: [
+            { id: 'prop_main',          label: '소품 본체',          category: 'prop',       priority: 1, tool: 'Hunyuan3D', format: 'fbx', polyBudget: 3000, texture: '2K', lod: false, nanite: false, collision: true,  reuse: '높음', performanceRisk: '낮음' }
+        ]
+    },
+    unknown: {
+        description: '유형 불명 이미지 (수동 분류 필요)',
+        wholeModelForbiddenReason: '유형 불명 — 분해 전 사용자 분류 필요',
+        segments: [
+            { id: 'unknown_asset',      label: '미분류 에셋',        category: 'misc',       priority: 1, tool: 'Manual Blender', format: 'fbx', polyBudget: 5000, texture: '2K', lod: false, nanite: false, collision: true, reuse: '낮음', performanceRisk: '미확인' }
+        ]
+    }
+};
+
+function generateImageDecompositionPlan(projectPath, intakeFile) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    ensureAssetSegmentationRules(projectPath);
+
+    if (!intakeFile || !fs.existsSync(intakeFile)) {
+        return { ok: false, reason: 'intake 파일 없음' };
+    }
+
+    const intakeContent = fs.readFileSync(intakeFile, 'utf8');
+    const imageTypeMatch = intakeContent.match(/이미지 종류:\s*(\w+)/);
+    const imageType = imageTypeMatch ? imageTypeMatch[1] : 'unknown';
+    const filenameMatch = intakeContent.match(/파일명:\s*(.+)/);
+    const filename = filenameMatch ? filenameMatch[1].trim() : path.basename(intakeFile, '.intake.md');
+    const baseName = path.basename(filename, path.extname(filename));
+
+    const preset = DECOMPOSITION_PRESETS[imageType] || DECOMPOSITION_PRESETS.unknown;
+    const plansDir = getAssetDecompositionPlansDir(projectPath);
+    if (!fs.existsSync(plansDir)) fs.mkdirSync(plansDir, { recursive: true });
+    const outFile = path.join(plansDir, `${baseName}.decomposition.md`);
+
+    const segTable = preset.segments.map(s =>
+        `| ${s.priority} | \`${s.id}\` | ${s.label} | ${s.category} | ${s.tool} | ${s.format} | ${s.polyBudget.toLocaleString()} | ${s.texture} | ${s.lod ? '필요' : '-'} | ${s.nanite ? '권장' : '-'} | ${s.collision ? '필요' : '-'} | ${s.reuse} | ${s.performanceRisk} |`
+    ).join('\n');
+
+    const content = `# 이미지 분해 계획 (Decomposition Plan)
+
+- 생성 시각: ${new Date().toLocaleString('ko-KR')}
+- 원본 intake: ${intakeFile}
+- 파일명: ${filename}
+- 이미지 유형: ${imageType}
+- 설명: ${preset.description}
+- dryRun: true
+
+## 통짜 모델링 금지 사유
+
+> **${preset.wholeModelForbiddenReason}**
+
+이미지 전체를 하나의 3D 모델로 생성하는 것은 금지됩니다.
+아래 에셋 단위로 분해하여 각각 별도 3D 모델로 생성해야 합니다.
+
+## 분해할 에셋 목록 (${preset.segments.length}개)
+
+| 우선순위 | ID | 이름 | 카테고리 | 권장 툴 | 출력 형식 | Poly Budget | 텍스처 | LOD | Nanite | 충돌 | 재사용 | 성능 위험 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+${segTable}
+
+## 권장 모델링 툴
+
+- **Hunyuan3D**: 유기적 형태, 석조물, 소품 — image-to-3D 생성
+- **TRELLIS**: 고품질 구조물, 복잡한 형태 — image-to-3D 생성
+- **Blender**: 반복 모듈, 타일, 기하학적 구조물 — 수동/스크립트 모델링
+- **Manual Blender**: 유형 불명 또는 특수 요구사항
+
+## UE5 배치 방식
+
+- 분해된 에셋을 UE5 레벨에서 인스턴스로 배치
+- 반복 구조물은 ISM(Instanced Static Mesh) 사용
+- 소품은 개별 배치
+- 문/창문은 Blueprint 액터로 래핑 (개폐 애니메이션)
+
+## 처리 우선순위
+
+1~4: 공간 구조 (바닥/벽/기둥/아치) 먼저
+5~8: 개구부 및 조명 요소
+9~12: 소품 및 장식 요소 (성능 예산 여유 시)
+
+## 다음 단계
+
+이 계획을 기반으로 generateSegment3DJobs() 를 실행하여
+각 에셋별 3D 생성 Job을 만든다.
+`;
+    safeWriteFile(outFile, content);
+    generatedFiles++;
+    return { ok: true, outFile, imageType, segmentCount: preset.segments.length, segments: preset.segments, baseName };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V70 § Segment-to-3D Job Generator — generateSegment3DJobs()
+// ═══════════════════════════════════════════════════════════════
+
+const NEGATIVE_PROMPT_BASE = 'entire room, full building, full interior, full school exterior, character, person, excessive ornaments, ultra high poly, broken geometry, merged walls, baked camera angle, background scenery, sky, landscape, multiple objects merged together';
+
+function buildPositivePrompt(segment, imageType) {
+    const stylePrefix = 'A game-ready modular asset for a cozy magical school';
+    const stylePostfix = 'clean silhouette, separate mesh, PBR material, neutral pose, no background, studio lighting, UE5 ready';
+    const catPrompts = {
+        structural: `${stylePrefix} — ${segment.label}, stone or wood material, ${stylePostfix}`,
+        door_window: `${stylePrefix} — ${segment.label}, aged wood or stained glass, ${stylePostfix}`,
+        prop: `${stylePrefix} — ${segment.label}, detailed but game-optimized, ${stylePostfix}`,
+        device: `${stylePrefix} — ${segment.label}, magical glowing runes, ${stylePostfix}`,
+        exterior: `${stylePrefix} exterior — ${segment.label}, weathered stone, ${stylePostfix}`,
+        decoration: `${stylePrefix} — ${segment.label}, decorative relief, ${stylePostfix}`,
+        misc: `${stylePrefix} — ${segment.label}, ${stylePostfix}`
+    };
+    return catPrompts[segment.category] || catPrompts.misc;
+}
+
+function generateSegment3DJobs(projectPath, decompositionFile) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+
+    if (!decompositionFile || !fs.existsSync(decompositionFile)) {
+        return { ok: false, reason: 'decomposition 파일 없음' };
+    }
+
+    const decomContent = fs.readFileSync(decompositionFile, 'utf8');
+    const imageTypeMatch = decomContent.match(/이미지 유형:\s*(\w+)/);
+    const imageType = imageTypeMatch ? imageTypeMatch[1] : 'unknown';
+    const filenameMatch = decomContent.match(/파일명:\s*(.+)/);
+    const filename = filenameMatch ? filenameMatch[1].trim() : '';
+    const baseName = path.basename(filename, path.extname(filename)) || path.basename(decompositionFile, '.decomposition.md');
+
+    const preset = DECOMPOSITION_PRESETS[imageType] || DECOMPOSITION_PRESETS.unknown;
+    const pendingDir = path.join(getAssetGenerationQueueDir(projectPath), 'pending');
+    if (!fs.existsSync(pendingDir)) fs.mkdirSync(pendingDir, { recursive: true });
+
+    const jobs = [];
+    for (const seg of preset.segments) {
+        const jobFile = path.join(pendingDir, `${baseName}_${seg.id}.job.md`);
+        const ueImportPath = `Content/Meshes/${seg.category === 'prop' ? 'Props' : seg.category === 'exterior' ? 'Exterior' : 'Interior'}/${seg.id}`;
+        const positivePrompt = buildPositivePrompt(seg, imageType);
+
+        const content = `# 3D 생성 Job — ${seg.label}
+
+- 생성 시각: ${new Date().toLocaleString('ko-KR')}
+- assetId: ${baseName}_${seg.id}
+- sourceImage: asset_inputs/images/${filename}
+- segmentName: ${seg.id}
+- segmentLabel: ${seg.label}
+- category: ${seg.category}
+- status: pending
+- dryRun: true
+
+## 생성 파라미터
+
+- prompt: ${positivePrompt}
+- negativePrompt: ${NEGATIVE_PROMPT_BASE}
+- outputFormat: ${seg.format}
+- targetPolyBudget: ${seg.polyBudget}
+- textureBudget: ${seg.texture}
+- recommendedTool: ${seg.tool}
+
+## UE5 설정
+
+- ueImportPath: ${ueImportPath}
+- collision: ${seg.collision ? '필요 (UCX_ 메시 포함)' : '불필요'}
+- lodRequired: ${seg.lod ? '예' : '아니오'}
+- naniteRecommended: ${seg.nanite ? '예' : '아니오'}
+- priority: ${seg.priority}
+- reusability: ${seg.reuse}
+- performanceRisk: ${seg.performanceRisk}
+
+## 실행 조건
+
+- 실제 3D 생성 툴(Hunyuan3D/TRELLIS/Blender) 설치 필요
+- 미설치 시 dry-run 유지 (이 파일은 생성됨)
+- 실행 허용: config.allow3DGeneration === true 일 때만
+
+## 주의
+
+negativePrompt에 반드시 포함:
+- entire room / full building / full interior / full school
+
+이 job은 ${seg.label} 단독 에셋 생성을 위한 것입니다.
+전체 방/건물/학교를 생성하지 마십시오.
+`;
+        safeWriteFile(jobFile, content);
+        generatedFiles++;
+        jobs.push({ jobFile, segmentId: seg.id, label: seg.label, tool: seg.tool, polyBudget: seg.polyBudget });
+    }
+
+    sendLog(`3D Job 생성: ${jobs.length}개 segment job (${baseName})`, 'success');
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        recordAgentMemory(vp, { task: `3D Job 생성: ${baseName}`, decision: `${jobs.length}개 segment job`, result: 'asset_generation_queue/pending' });
+    } catch { /* 비중단 */ }
+    return { ok: true, baseName, jobs, jobCount: jobs.length };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V71 § Quality Gate — runAssetQualityGate()
+// ═══════════════════════════════════════════════════════════════
+
+function runAssetQualityGate(projectPath) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    const pendingDir = path.join(getAssetGenerationQueueDir(projectPath), 'pending');
+    const generatedDir = getGeneratedAssetsDir(projectPath);
+
+    const jobFiles = fs.existsSync(pendingDir) ? fs.readdirSync(pendingDir).filter(f => f.endsWith('.job.md')).map(f => path.join(pendingDir, f)) : [];
+    const assetFiles = fs.existsSync(generatedDir) ? fs.readdirSync(generatedDir).filter(f => /\.(glb|obj|fbx)$/i.test(f)).map(f => path.join(generatedDir, f)) : [];
+
+    const results = [];
+
+    // Job 파일 검사
+    for (const jobFile of jobFiles) {
+        const content = fs.readFileSync(jobFile, 'utf8');
+        const checks = [];
+        let decision = 'PASS';
+
+        const hasNegativePrompt = /negativePrompt:/i.test(content);
+        const hasPolyBudget = /targetPolyBudget:/i.test(content);
+        const hasUEPath = /ueImportPath:/i.test(content);
+        const hasEntireRoomForbidden = /entire room|full building|full interior/i.test(content);
+        const hasFormat = /outputFormat:/i.test(content);
+
+        const polyMatch = content.match(/targetPolyBudget:\s*(\d+)/);
+        const polyBudget = polyMatch ? parseInt(polyMatch[1]) : 0;
+
+        if (!hasNegativePrompt) { checks.push('negativePrompt 없음'); decision = 'REJECT'; }
+        if (!hasPolyBudget)     { checks.push('poly budget 없음'); if (decision !== 'REJECT') decision = 'REVIEW'; }
+        if (!hasUEPath)         { checks.push('UE5 임포트 경로 없음'); if (decision !== 'REJECT') decision = 'REVIEW'; }
+        if (!hasEntireRoomForbidden) { checks.push('통짜 모델 금지 문구 없음'); decision = 'REJECT'; }
+        if (!hasFormat)         { checks.push('출력 형식 미지정'); if (decision !== 'REJECT') decision = 'REVIEW'; }
+        if (polyBudget > 200000) { checks.push(`poly budget 과도: ${polyBudget.toLocaleString()} tris`); decision = 'REJECT'; }
+        else if (polyBudget > 100000) { checks.push(`poly budget 경고: ${polyBudget.toLocaleString()} tris`); if (decision !== 'REJECT') decision = 'REVIEW'; }
+        if (polyBudget > 0 && polyBudget < 100) { checks.push(`poly budget 너무 단순: ${polyBudget} tris`); if (decision !== 'REJECT') decision = 'REVIEW'; }
+
+        if (checks.length === 0) checks.push('모든 기준 통과');
+        results.push({ type: 'job', file: path.basename(jobFile), decision, checks });
+    }
+
+    // 실제 생성 에셋 파일 검사 (있을 경우)
+    for (const assetFile of assetFiles) {
+        const stat = fs.statSync(assetFile);
+        const checks = [];
+        let decision = 'PASS';
+        const sizeMB = stat.size / (1024 * 1024);
+
+        if (sizeMB > 100)  { checks.push(`파일 크기 과도: ${sizeMB.toFixed(1)} MB`); decision = 'REJECT'; }
+        else if (sizeMB > 50) { checks.push(`파일 크기 경고: ${sizeMB.toFixed(1)} MB`); decision = 'REVIEW'; }
+        else if (stat.size === 0) { checks.push('빈 파일'); decision = 'REJECT'; }
+        else checks.push(`파일 크기 정상: ${sizeMB.toFixed(2)} MB`);
+
+        results.push({ type: 'asset', file: path.basename(assetFile), decision, checks });
+    }
+
+    const passCount   = results.filter(r => r.decision === 'PASS').length;
+    const reviewCount = results.filter(r => r.decision === 'REVIEW').length;
+    const rejectCount = results.filter(r => r.decision === 'REJECT').length;
+
+    const report = `# 에셋 품질 보고서 (Asset Quality Report)
+
+- 생성 시각: ${new Date().toLocaleString('ko-KR')}
+- 검사 항목: ${results.length}개 (Job ${jobFiles.length}개 + 생성 에셋 ${assetFiles.length}개)
+- PASS: ${passCount} / REVIEW: ${reviewCount} / REJECT: ${rejectCount}
+
+## 검사 결과
+
+| 파일 | 유형 | 판정 | 사유 |
+| --- | --- | --- | --- |
+${results.map(r => `| ${r.file} | ${r.type} | **${r.decision}** | ${r.checks.join('; ')} |`).join('\n') || '| 없음 | - | - | - |'}
+
+## 판정 기준
+
+| 조건 | 판정 |
+| --- | --- |
+| negativePrompt 없음 | REJECT |
+| 통짜 모델 금지 문구 없음 | REJECT |
+| 200,000 tris 초과 | REJECT |
+| 파일 크기 100MB 초과 | REJECT |
+| poly budget 없음 | REVIEW |
+| 100,000 tris 초과 | REVIEW |
+| 100 tris 미만 | REVIEW |
+| UE5 임포트 경로 없음 | REVIEW |
+| 파일 크기 50MB 초과 | REVIEW |
+| 모두 통과 | PASS |
+`;
+    safeWriteFile(getAssetQualityReportFile(projectPath), report);
+    generatedFiles++;
+    return { passCount, reviewCount, rejectCount, results, report };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V72 § Image-to-3D Dry Run — runImageTo3DDryRun()
+// ═══════════════════════════════════════════════════════════════
+
+function runImageTo3DDryRun(projectPath) {
+    ensureProjectFolders(projectPath || DEFAULT_PROJECT_PATH);
+    ensureAssetSegmentationRules(projectPath);
+    sendLog('Image-to-3D dry-run 시작...', 'info');
+
+    // 1. 이미지 스캔 + intake 생성
+    const intake = scanAssetInputImages(projectPath);
+
+    // 2. 각 intake 파일에 대해 decomposition plan 생성
+    const plans = [];
+    const analyzedDir = getAssetAnalyzedDir(projectPath);
+    let intakeFiles = [];
+    try { intakeFiles = fs.readdirSync(analyzedDir).filter(f => f.endsWith('.intake.md')).map(f => path.join(analyzedDir, f)); } catch {}
+
+    for (const intakeFile of intakeFiles) {
+        const plan = generateImageDecompositionPlan(projectPath, intakeFile);
+        if (plan.ok) plans.push(plan);
+    }
+
+    // 3. 각 decomposition plan에 대해 segment jobs 생성
+    const allJobs = [];
+    const plansDir = getAssetDecompositionPlansDir(projectPath);
+    let decompositionFiles = [];
+    try { decompositionFiles = fs.readdirSync(plansDir).filter(f => f.endsWith('.decomposition.md')).map(f => path.join(plansDir, f)); } catch {}
+
+    for (const decomFile of decompositionFiles) {
+        const result = generateSegment3DJobs(projectPath, decomFile);
+        if (result.ok) allJobs.push(...result.jobs);
+    }
+
+    // 4. Quality Gate 실행
+    const qualityResult = runAssetQualityGate(projectPath);
+
+    // 5. PASS job → apply_candidates/world 승격 후보 생성
+    const worldCandidatesDir = path.join(getApplyCandidatesDir(projectPath), 'world');
+    if (!fs.existsSync(worldCandidatesDir)) fs.mkdirSync(worldCandidatesDir, { recursive: true });
+
+    const promotedCandidates = [];
+    const pendingDir = path.join(getAssetGenerationQueueDir(projectPath), 'pending');
+    let jobFiles = [];
+    try { jobFiles = fs.readdirSync(pendingDir).filter(f => f.endsWith('.job.md')); } catch {}
+
+    for (const jobFile of jobFiles) {
+        const jobPath = path.join(pendingDir, jobFile);
+        const jobContent = fs.readFileSync(jobPath, 'utf8');
+        const qr = qualityResult.results.find(r => r.file === jobFile);
+        if (qr && qr.decision === 'REJECT') continue; // REJECT는 승격 불가
+
+        const segIdMatch = jobContent.match(/segmentName:\s*(\S+)/);
+        const segLabelMatch = jobContent.match(/segmentLabel:\s*(.+)/);
+        const sourceMatch = jobContent.match(/sourceImage:\s*(.+)/);
+        const uePathMatch = jobContent.match(/ueImportPath:\s*(.+)/);
+        const polyMatch = jobContent.match(/targetPolyBudget:\s*(\d+)/);
+        const formatMatch = jobContent.match(/outputFormat:\s*(\S+)/);
+        const lodMatch = jobContent.match(/lodRequired:\s*(\S+)/);
+        const naniteMatch = jobContent.match(/naniteRecommended:\s*(\S+)/);
+        const collisionMatch = jobContent.match(/collision:\s*(.+)/);
+
+        const segId = segIdMatch ? segIdMatch[1].trim() : jobFile.replace('.job.md', '');
+        const segLabel = segLabelMatch ? segLabelMatch[1].trim() : segId;
+        const candidateFile = path.join(worldCandidatesDir, `${segId}_import.candidate.md`);
+
+        const candidateContent = `# 3D 에셋 임포트 후보 — ${segLabel}
+
+- 생성 시각: ${new Date().toLocaleString('ko-KR')}
+- 분류: world
+- 원본 이미지: ${sourceMatch ? sourceMatch[1].trim() : '알 수 없음'}
+- 분해된 파트: ${segId}
+- 파트 이름: ${segLabel}
+- 3D 결과물 예상 경로: generated_assets/${segId}.${formatMatch ? formatMatch[1].trim() : 'fbx'}
+- UE5 추천 임포트 경로: ${uePathMatch ? uePathMatch[1].trim() : 'Content/Meshes/World'}
+- 권장 스케일: 1.0 (1 UE unit = 1 cm)
+- 권장 Poly Budget: ${polyMatch ? polyMatch[1] : '미지정'} tris
+- 충돌 설정: ${collisionMatch ? collisionMatch[1].trim() : '필요'}
+- LOD 필요 여부: ${lodMatch ? lodMatch[1].trim() : '아니오'}
+- Nanite 권장: ${naniteMatch ? naniteMatch[1].trim() : '아니오'}
+- 머티리얼 기준: PBR (BaseColor, Normal, ORM)
+- 실제 모델 파일 존재: 아니오 (dry-run — 3D 생성 미실행)
+- 실제 적용 여부: false
+- allowRealApply 필요: true (Content 복사 시)
+- 품질 검사 결과: ${qr ? qr.decision : 'PASS'}
+- dryRun: true
+
+## 적용 방법
+
+1. 3D 생성 툴(${jobContent.match(/recommendedTool:\s*(.+)/)?.[1]?.trim() || 'Hunyuan3D'})으로 위 job 파일 기준 에셋 생성
+2. 결과물을 generated_assets/${segId}.fbx 로 저장
+3. allowRealApply=true 설정 후 promoteCandidateToProject() 실행
+4. UE5에서 ${uePathMatch ? uePathMatch[1].trim() : 'Content/Meshes/World'}/ 에 임포트
+
+## 주의
+
+- 실제 UE5 Content 복사는 allowRealApply=true일 때만 허용
+- 현재 dry-run 상태 — 실제 파일 생성/복사 없음
+`;
+        safeWriteFile(candidateFile, candidateContent + buildKnowledgeContextSection('3D asset world ' + segLabel));
+        generatedFiles++;
+        promotedCandidates.push({ candidateFile, segId, decision: qr ? qr.decision : 'PASS' });
+    }
+
+    const summary = {
+        ok: true,
+        dryRun: true,
+        imageCount: intake.count,
+        intakeCount: intakeFiles.length,
+        planCount: plans.length,
+        jobCount: allJobs.length,
+        qualityPass: qualityResult.passCount,
+        qualityReview: qualityResult.reviewCount,
+        qualityReject: qualityResult.rejectCount,
+        candidateCount: promotedCandidates.length
+    };
+    sendLog(`Image-to-3D dry-run 완료: 이미지 ${intake.count}개 → Job ${allJobs.length}개 → 후보 ${promotedCandidates.length}개`, 'success');
+    return summary;
 }
 
 ipcMain.handle('get-config', () => loadConfig());
@@ -4191,10 +5676,14 @@ ipcMain.handle('generate-code-candidate', (_, p, templateId) => {
 ipcMain.handle('list-code-templates', () => SCHOOL_CODE_TEMPLATES.map(({ id, label, category, description, targetPath }) => ({ id, label, category, description, targetPath })));
 ipcMain.handle('register-apply-candidate', (_, p, candidateFile) => registerApplyCandidateToQueue(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), candidateFile || ''));
 ipcMain.handle('read-apply-queue', (_, p) => getApplyQueueSummary(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
-ipcMain.handle('approve-apply-queue', (_, p, queueFile) => moveApplyQueueItem(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), queueFile, 'approved'));
-ipcMain.handle('reject-apply-queue', (_, p, queueFile) => moveApplyQueueItem(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), queueFile, 'rejected'));
-ipcMain.handle('run-apply-dry-run', (_, p, queueFile) => runApplyDryRun(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), queueFile || ''));
-// ── V57: 승인/거절 IPC 핸들러 ─────────────────────────────────────────────
+ipcMain.handle('create-apply-review', (_, p, queueFile) => createApplyReview(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), queueFile || ''));
+ipcMain.handle('read-apply-reviews', (_, p) => getApplyReviewSummary(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
+ipcMain.handle('generate-apply-review-workflow-report', (_, p) => generateApplyReviewWorkflowReport(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
+ipcMain.handle('list-approved-apply-candidates', (_, p) => listApprovedApplyCandidates(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
+ipcMain.handle('create-ue5-import-manifest', (_, p, candidateFile) => createUE5ImportManifest(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), candidateFile || ''));
+ipcMain.handle('create-ue5-import-manifests-from-approved', (_, p) => createUE5ImportManifestsFromApproved(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
+ipcMain.handle('read-ue5-import-manifests', (_, p) => readUE5ImportManifests(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
+ipcMain.handle('generate-ue5-import-manifest-report', (_, p) => generateUE5ImportManifestReport(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
 ipcMain.handle('approve-apply-queue', (_, p, queueFile) => {
     const pp = getWritableProjectPath(p || DEFAULT_PROJECT_PATH);
     return moveApplyQueueItem(pp, queueFile || '', 'approved');
@@ -4203,6 +5692,7 @@ ipcMain.handle('reject-apply-queue', (_, p, queueFile) => {
     const pp = getWritableProjectPath(p || DEFAULT_PROJECT_PATH);
     return moveApplyQueueItem(pp, queueFile || '', 'rejected');
 });
+ipcMain.handle('run-apply-dry-run', (_, p, queueFile) => runApplyDryRun(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), queueFile || ''));
 // ── V51-V54 IPC 핸들러 ─────────────────────────────────────────────────────
 ipcMain.handle('promote-candidate-to-project', (_, p, candidateFile) => promoteCandidateToProject(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), candidateFile || ''));
 ipcMain.handle('generate-implementation-trace', (_, p) => generateImplementationTrace(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
@@ -4224,6 +5714,1363 @@ ipcMain.handle('get-actual-only-progress', async (_, p) => {
     if (!items.length) return 0;
     return getActualOnlyProgress(items);
 });
+// ── V67-V72 IPC 핸들러: Image-to-3D Pipeline ─────────────────────────────────
+ipcMain.handle('scan-asset-input-images', (_, p) => scanAssetInputImages(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
+ipcMain.handle('generate-image-decomposition-plan', (_, p, intakeFile) => generateImageDecompositionPlan(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), intakeFile || ''));
+ipcMain.handle('generate-segment-3d-jobs', (_, p, decompositionFile) => generateSegment3DJobs(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), decompositionFile || ''));
+ipcMain.handle('run-asset-quality-gate', (_, p) => runAssetQualityGate(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
+ipcMain.handle('run-image-to-3d-dry-run', (_, p) => runImageTo3DDryRun(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
+ipcMain.handle('open-asset-images-folder', (_, p) => shell.openPath(path.join(getWritableProjectPath(p || DEFAULT_PROJECT_PATH), 'asset_inputs', 'images')));
+ipcMain.handle('read-asset-quality-report', (_, p) => {
+    const f = getAssetQualityReportFile(getWritableProjectPath(p || DEFAULT_PROJECT_PATH));
+    return fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '';
+});
+ipcMain.handle('get-asset-pipeline-summary', (_, p) => {
+    const pp = getWritableProjectPath(p || DEFAULT_PROJECT_PATH);
+    ensureProjectFolders(pp);
+    const imagesDir = path.join(getAssetInputsDir(pp), 'images');
+    const analyzedDir = getAssetAnalyzedDir(pp);
+    const plansDir = getAssetDecompositionPlansDir(pp);
+    const pendingDir = path.join(getAssetGenerationQueueDir(pp), 'pending');
+    const generatedDir = getGeneratedAssetsDir(pp);
+    const worldCandidatesDir = path.join(getApplyCandidatesDir(pp), 'world');
+    const safeCount = (dir, ext) => { try { return fs.readdirSync(dir).filter(f => f.endsWith(ext)).length; } catch { return 0; } };
+    const qr = (() => { const f = getAssetQualityReportFile(pp); if (!fs.existsSync(f)) return { passCount: 0, reviewCount: 0, rejectCount: 0 }; const t = fs.readFileSync(f, 'utf8'); const m = t.match(/PASS:\s*(\d+).*?REVIEW:\s*(\d+).*?REJECT:\s*(\d+)/s); return m ? { passCount: +m[1], reviewCount: +m[2], rejectCount: +m[3] } : { passCount: 0, reviewCount: 0, rejectCount: 0 }; })();
+    return {
+        imageCount:     safeCount(imagesDir, '.png') + safeCount(imagesDir, '.jpg') + safeCount(imagesDir, '.jpeg') + safeCount(imagesDir, '.webp'),
+        intakeCount:    safeCount(analyzedDir, '.intake.md'),
+        planCount:      safeCount(plansDir, '.decomposition.md'),
+        jobCount:       safeCount(pendingDir, '.job.md'),
+        generatedCount: safeCount(generatedDir, '.fbx') + safeCount(generatedDir, '.glb') + safeCount(generatedDir, '.obj'),
+        candidateCount: safeCount(worldCandidatesDir, '.candidate.md'),
+        ...qr
+    };
+});
+// ── V62-V65 IPC 핸들러 ────────────────────────────────────────────────────────
+ipcMain.handle('scan-existing-project', (_, p) => {
+    const pp = getWritableProjectPath(p || DEFAULT_PROJECT_PATH);
+    const result = scanExistingProject(pp);
+    sendLog(`기존 프로젝트 스캔 완료: 시스템 ${result.implementedSystems.length}개 감지, 클래스 ${result.allClassNames.length}개`, 'success');
+    return result;
+});
+ipcMain.handle('read-existing-project-inventory', (_, p) => {
+    const pp = getWritableProjectPath(p || DEFAULT_PROJECT_PATH);
+    const f = getExistingProjectInventoryFile(pp);
+    return fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '';
+});
+ipcMain.handle('find-existing-implementation', (_, p, systemName) => {
+    const pp = getWritableProjectPath(p || DEFAULT_PROJECT_PATH);
+    return findExistingImplementation(pp, systemName || '');
+});
+ipcMain.handle('validate-candidate-against-project', (_, p, candidateFile) => {
+    const pp = getWritableProjectPath(p || DEFAULT_PROJECT_PATH);
+    return validateCandidateAgainstProject(pp, candidateFile || '');
+});
+ipcMain.handle('generate-extension-candidate', (_, p, systemName, spec) => {
+    const pp = getWritableProjectPath(p || DEFAULT_PROJECT_PATH);
+    const result = generateExtensionCandidate(pp, systemName || '', spec || {});
+    if (result.ok) sendLog(`확장 후보 생성: ${result.systemName} → ${result.existingFile}`, 'success');
+    else sendLog(`확장 후보 생성 실패: ${result.reason}`, 'warn');
+    return result;
+});
+
+// ═══════════════════════════════════════════════════════════════
+// V73 § Knowledge Agent — Obsidian Vault 연동
+// ═══════════════════════════════════════════════════════════════
+
+const VAULT_ALLOWED_FOLDERS = ['Projects', 'Knowledge', 'Worldbuilding', 'UE5', '3DAssets', 'Tasks'];
+const VAULT_DEFAULT_FOLDER = 'Knowledge';
+
+function assertVaultPath(vaultPath, notePath) {
+    const rel = path.relative(vaultPath, path.resolve(vaultPath, notePath));
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        throw new Error(`경로 이탈 감지: ${notePath}`);
+    }
+}
+
+function extractVaultMeta(content, filePath) {
+    const title = (() => {
+        const m = content.match(/^#\s+(.+)/m);
+        if (m) return m[1].trim();
+        return path.basename(filePath, '.md');
+    })();
+    const tags = [];
+    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+    if (fmMatch) {
+        const tagLine = fmMatch[1].match(/^tags:\s*(.+)/m);
+        if (tagLine) {
+            const raw = tagLine[1].trim();
+            if (raw.startsWith('[')) {
+                try { tags.push(...JSON.parse(raw)); } catch {
+                    // YAML array: [ue5, worldbuilding, quest] — no quotes
+                    tags.push(...raw.slice(1, -1).split(',').map(t => t.trim()).filter(Boolean));
+                }
+            } else {
+                tags.push(...raw.split(',').map(t => t.trim()).filter(Boolean));
+            }
+        }
+        const tagList = fmMatch[1].match(/^tags:\s*\n((?:\s+-\s+.+\n?)+)/m);
+        if (tagList && !tagLine) {
+            tags.push(...tagList[1].split('\n').map(l => l.replace(/^\s+-\s+/, '').trim()).filter(Boolean));
+        }
+    }
+    const links = [];
+    const linkRe = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+    let lm;
+    while ((lm = linkRe.exec(content)) !== null) links.push(lm[1].trim());
+    return { title, tags: [...new Set(tags)], links: [...new Set(links)] };
+}
+
+function getVaultStatus(vaultPath) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    const exists = fs.existsSync(vp);
+    if (!exists) return { exists: false, vaultPath: vp, warning: 'Vault 경로가 존재하지 않습니다. 설정에서 경로를 확인하세요.', noteCount: 0, folderCount: 0 };
+    let noteCount = 0, folderCount = 0;
+    function walk(dir) {
+        let entries;
+        try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+        for (const e of entries) {
+            if (e.isDirectory()) { folderCount++; walk(path.join(dir, e.name)); }
+            else if (e.name.endsWith('.md')) noteCount++;
+        }
+    }
+    walk(vp);
+    return { exists: true, vaultPath: vp, noteCount, folderCount, warning: null };
+}
+
+function scanVault(vaultPath) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    if (!fs.existsSync(vp)) return { ok: false, error: 'Vault 없음', index: [] };
+    const index = [];
+    function walk(dir) {
+        let entries;
+        try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+        for (const e of entries) {
+            const full = path.join(dir, e.name);
+            if (e.isDirectory()) { walk(full); continue; }
+            if (!e.name.endsWith('.md')) continue;
+            const rel = path.relative(vp, full).replace(/\\/g, '/');
+            let content = '';
+            try { content = fs.readFileSync(full, 'utf8'); } catch { continue; }
+            const meta = extractVaultMeta(content, rel);
+            const stat = fs.statSync(full);
+            index.push({ path: rel, title: meta.title, tags: meta.tags, links: meta.links, mtime: stat.mtimeMs, size: stat.size });
+        }
+    }
+    walk(vp);
+    index.sort((a, b) => b.mtime - a.mtime);
+    return { ok: true, index, noteCount: index.length };
+}
+
+function searchVault(vaultPath, query) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    if (!query || !query.trim()) return { ok: false, error: '검색어 없음', results: [] };
+    const q = query.toLowerCase().trim();
+    const { ok, index } = scanVault(vp);
+    if (!ok) return { ok: false, error: 'Vault 없음', results: [] };
+    const results = [];
+    for (const note of index) {
+        const titleMatch = note.title.toLowerCase().includes(q);
+        const tagMatch = note.tags.some(t => t.toLowerCase().includes(q));
+        let contentMatch = false, snippet = '';
+        try {
+            const content = fs.readFileSync(path.join(vp, note.path), 'utf8');
+            const idx = content.toLowerCase().indexOf(q);
+            if (idx !== -1) {
+                contentMatch = true;
+                snippet = content.slice(Math.max(0, idx - 60), idx + 120).replace(/\n/g, ' ').trim();
+            }
+        } catch {}
+        if (titleMatch || tagMatch || contentMatch) {
+            const score = (titleMatch ? 3 : 0) + (tagMatch ? 2 : 0) + (contentMatch ? 1 : 0);
+            results.push({ ...note, score, snippet, titleMatch, tagMatch, contentMatch });
+        }
+    }
+    results.sort((a, b) => b.score - a.score);
+    return { ok: true, query, results, total: results.length };
+}
+
+function readVaultNote(vaultPath, notePath) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    assertVaultPath(vp, notePath);
+    const full = path.join(vp, notePath);
+    if (!fs.existsSync(full)) return { ok: false, error: '노트 없음', path: notePath };
+    const content = fs.readFileSync(full, 'utf8');
+    const meta = extractVaultMeta(content, notePath);
+    const stat = fs.statSync(full);
+    return { ok: true, path: notePath, content, title: meta.title, tags: meta.tags, links: meta.links, mtime: stat.mtimeMs };
+}
+
+function getRelatedNotes(vaultPath, topic) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    if (!topic) return { ok: false, results: [] };
+    const { ok, index } = scanVault(vp);
+    if (!ok) return { ok: false, results: [] };
+    const q = topic.toLowerCase().trim();
+    const scored = index.map(note => {
+        let score = 0;
+        if (note.title.toLowerCase().includes(q)) score += 4;
+        if (note.tags.some(t => t.toLowerCase().includes(q))) score += 3;
+        if (note.links.some(l => l.toLowerCase().includes(q))) score += 2;
+        return { ...note, score };
+    }).filter(n => n.score > 0).sort((a, b) => b.score - a.score).slice(0, 10);
+    return { ok: true, topic, results: scored };
+}
+
+function createVaultNote(vaultPath, folder, title, content, tags) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    if (!fs.existsSync(vp)) return { ok: false, error: 'Vault 없음' };
+
+    const targetFolder = folder && folder.trim() ? folder.trim() : VAULT_DEFAULT_FOLDER;
+    const isAllowed = VAULT_ALLOWED_FOLDERS.includes(targetFolder);
+    const warning = isAllowed ? null : `루트 또는 비허용 폴더 저장 — REVIEW 권장 폴더: ${VAULT_ALLOWED_FOLDERS.join(', ')}`;
+
+    const safeTitle = (title || 'Untitled').replace(/[\\/:*?"<>|]/g, '_');
+    const relPath = isAllowed ? `${targetFolder}/${safeTitle}.md` : `${safeTitle}.md`;
+    assertVaultPath(vp, relPath);
+    const full = path.join(vp, relPath);
+
+    if (fs.existsSync(full)) return { ok: false, error: '중복 노트', path: relPath };
+
+    const tagArr = Array.isArray(tags) ? tags : (tags ? [tags] : []);
+    const fm = tagArr.length ? `---\ntags: [${tagArr.join(', ')}]\n---\n\n` : '';
+    const body = `${fm}# ${safeTitle}\n\n${content || ''}`;
+
+    const dir = path.dirname(full);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(full, body, 'utf8');
+    return { ok: true, path: relPath, title: safeTitle, tags: tagArr, warning };
+}
+
+function updateVaultNote(vaultPath, notePath, content, overwrite) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    assertVaultPath(vp, notePath);
+    const full = path.join(vp, notePath);
+    if (!fs.existsSync(full)) return { ok: false, error: '노트 없음', path: notePath };
+
+    if (overwrite === true) {
+        fs.writeFileSync(full, content || '', 'utf8');
+        return { ok: true, path: notePath, mode: 'overwrite' };
+    }
+    const existing = fs.readFileSync(full, 'utf8');
+    const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const appended = `${existing}\n\n<!-- appended ${timestamp} -->\n${content || ''}`;
+    fs.writeFileSync(full, appended, 'utf8');
+    return { ok: true, path: notePath, mode: 'append' };
+}
+
+function getRecentNotes(vaultPath, limit) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    const { ok, index } = scanVault(vp);
+    if (!ok) return { ok: false, notes: [] };
+    const n = Math.min(Number(limit) || 10, 50);
+    return { ok: true, notes: index.slice(0, n) };
+}
+
+function getVaultSummary(vaultPath) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    const status = getVaultStatus(vp);
+    if (!status.exists) return { ok: false, warning: status.warning };
+    const { ok, index } = scanVault(vp);
+    if (!ok) return { ok: false, warning: 'Vault 스캔 실패' };
+    const allTags = {};
+    const allLinks = {};
+    for (const note of index) {
+        for (const t of note.tags) allTags[t] = (allTags[t] || 0) + 1;
+        for (const l of note.links) allLinks[l] = (allLinks[l] || 0) + 1;
+    }
+    const topTags = Object.entries(allTags).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([tag, count]) => ({ tag, count }));
+    const topLinks = Object.entries(allLinks).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([link, count]) => ({ link, count }));
+    const recent = index.slice(0, 5);
+    return {
+        ok: true, vaultPath: vp,
+        noteCount: index.length,
+        folderCount: status.folderCount,
+        tagCount: Object.keys(allTags).length,
+        linkCount: Object.keys(allLinks).length,
+        topTags, topLinks, recent,
+        allowedFolders: VAULT_ALLOWED_FOLDERS
+    };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V74 § Knowledge Agent — 자동 기억 시스템
+// ═══════════════════════════════════════════════════════════════
+
+function getAgentMemoryFile(vaultPath) {
+    return path.join(vaultPath || DEFAULT_VAULT_PATH, 'Knowledge', 'Agent Memory.md');
+}
+function getProjectDecisionsFile(vaultPath) {
+    return path.join(vaultPath || DEFAULT_VAULT_PATH, 'Knowledge', 'Project Decisions.md');
+}
+function getKnowledgeSummaryFile(vaultPath) {
+    return path.join(vaultPath || DEFAULT_VAULT_PATH, 'Knowledge', 'knowledge_summary.md');
+}
+
+function ensureVaultFolder(vaultPath, folder) {
+    const dir = path.join(vaultPath || DEFAULT_VAULT_PATH, folder);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+function buildKnowledgeContext(vaultPath, query) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    const empty = { ok: false, query, refs: [], tags: [], links: [], summary: 'Vault 없음 또는 검색 실패', noteCount: 0 };
+    try {
+        if (!query || !query.trim()) return empty;
+        const sr = searchVault(vp, query);
+        if (!sr.ok || !sr.results.length) {
+            // 쿼리를 단어별로 분해해 재시도
+            const words = query.trim().split(/\s+/).filter(w => w.length >= 2);
+            const combined = [];
+            for (const w of words) {
+                const r = searchVault(vp, w);
+                if (r.ok) combined.push(...r.results);
+            }
+            const seen = new Set();
+            const deduped = combined.filter(n => { if (seen.has(n.path)) return false; seen.add(n.path); return true; });
+            deduped.sort((a, b) => (b.score || 0) - (a.score || 0));
+            const refs = deduped.slice(0, 5).map(n => ({ path: n.path, title: n.title, score: n.score || 0, tags: n.tags, links: n.links }));
+            const allTags = [...new Set(refs.flatMap(r => r.tags))];
+            const allLinks = [...new Set(refs.flatMap(r => r.links))];
+            return { ok: refs.length > 0, query, refs, tags: allTags, links: allLinks, summary: `관련 문서 ${refs.length}개 (단어 분해 검색)`, noteCount: refs.length };
+        }
+        const top = sr.results.slice(0, 5);
+        const refs = top.map(n => ({ path: n.path, title: n.title, score: n.score, tags: n.tags, links: n.links, snippet: n.snippet || '' }));
+        const allTags = [...new Set(refs.flatMap(r => r.tags))];
+        const allLinks = [...new Set(refs.flatMap(r => r.links))];
+        const summary = `관련 문서 ${refs.length}개 발견. 주요 태그: ${allTags.slice(0, 5).join(', ') || '없음'}. 주요 링크: ${allLinks.slice(0, 5).join(', ') || '없음'}.`;
+        return { ok: true, query, refs, tags: allTags, links: allLinks, summary, noteCount: refs.length };
+    } catch (e) {
+        return { ...empty, error: e.message };
+    }
+}
+
+function recordAgentMemory(vaultPath, entry) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    if (!fs.existsSync(vp)) return { ok: false, error: 'Vault 없음' };
+    ensureVaultFolder(vp, 'Knowledge');
+    const file = getAgentMemoryFile(vp);
+    const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const block = `\n## ${timestamp}\n\n**작업:** ${entry.task || '—'}\n**사용 문서:** ${(entry.refs || []).join(', ') || '없음'}\n**결정 사항:** ${entry.decision || '—'}\n**결과:** ${entry.result || '—'}\n\n---\n`;
+    if (!fs.existsSync(file)) {
+        fs.writeFileSync(file, `# Agent Memory\n\nToribatAgent 자동 기억 저장소. 삭제 금지.\n\n---\n${block}`, 'utf8');
+    } else {
+        fs.appendFileSync(file, block, 'utf8');
+    }
+    return { ok: true, file: path.relative(vp, file), timestamp };
+}
+
+function recordDecision(vaultPath, decision, detail) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    if (!fs.existsSync(vp)) return { ok: false, error: 'Vault 없음' };
+    ensureVaultFolder(vp, 'Knowledge');
+    const file = getProjectDecisionsFile(vp);
+    // 중복 방지: 동일 결정 텍스트가 이미 있으면 스킵
+    if (fs.existsSync(file)) {
+        const existing = fs.readFileSync(file, 'utf8');
+        if (existing.includes(decision.trim())) return { ok: false, reason: '중복 결정', decision };
+    }
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const block = `\n## ${decision}\n\n- 날짜: ${timestamp}\n- 상세: ${detail || '—'}\n\n---\n`;
+    if (!fs.existsSync(file)) {
+        fs.writeFileSync(file, `# Project Decisions\n\nToribatAgent 프로젝트 주요 결정 기록. 삭제 금지.\n\n---\n${block}`, 'utf8');
+    } else {
+        fs.appendFileSync(file, block, 'utf8');
+    }
+    return { ok: true, file: path.relative(vp, file), decision };
+}
+
+function getAgentMemory(vaultPath) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    const file = getAgentMemoryFile(vp);
+    if (!fs.existsSync(file)) return { ok: false, content: '', error: '기억 파일 없음' };
+    return { ok: true, content: fs.readFileSync(file, 'utf8') };
+}
+
+function getProjectDecisions(vaultPath) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    const file = getProjectDecisionsFile(vp);
+    if (!fs.existsSync(file)) return { ok: false, content: '', error: '결정 파일 없음' };
+    return { ok: true, content: fs.readFileSync(file, 'utf8') };
+}
+
+function generateKnowledgeSummary(vaultPath) {
+    const vp = vaultPath || DEFAULT_VAULT_PATH;
+    if (!fs.existsSync(vp)) return { ok: false, error: 'Vault 없음' };
+    ensureVaultFolder(vp, 'Knowledge');
+    const summary = getVaultSummary(vp);
+    if (!summary.ok) return { ok: false, error: 'Vault 요약 실패' };
+    const memory = getAgentMemory(vp);
+    const decisions = getProjectDecisions(vp);
+    const recentWork = (memory.content || '').split('## ').filter(s => s.trim()).slice(-5)
+        .map(s => '- ' + s.split('\n')[0].trim()).join('\n') || '없음';
+    const decisionList = (decisions.content || '').split('## ').filter(s => s.trim() && !s.startsWith('Project'))
+        .map(s => '- ' + s.split('\n')[0].trim()).join('\n') || '없음';
+    const topProjects = (summary.topLinks || []).slice(0, 5).map(l => `- [[${l.link}]]`).join('\n') || '없음';
+    const topTags = (summary.topTags || []).slice(0, 10).map(t => `#${t.tag}`).join(' ') || '없음';
+    const ts = new Date().toLocaleString('ko-KR');
+    const content = `# Knowledge Summary\n\n생성: ${ts}\n\n## 주요 프로젝트\n${topProjects}\n\n## 주요 태그\n${topTags}\n\n## 주요 결정\n${decisionList}\n\n## 최근 작업\n${recentWork}\n\n## Vault 통계\n- 노트 수: ${summary.noteCount}\n- 폴더 수: ${summary.folderCount}\n- 태그 수: ${summary.tagCount}\n- 링크 수: ${summary.linkCount}\n`;
+    const file = getKnowledgeSummaryFile(vp);
+    fs.writeFileSync(file, content, 'utf8');
+    return { ok: true, file: path.relative(vp, file), content };
+}
+
+function buildKnowledgeContextSection(query) {
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        const ctx = buildKnowledgeContext(vp, query);
+        if (!ctx.ok || !ctx.refs.length) return '';
+        const refLines = ctx.refs.map(r => `  - [${r.title}](${r.path}) — score ${r.score}`).join('\n');
+        return `\n## Knowledge References\n\n- 검색 쿼리: ${ctx.query}\n- 참고 문서 수: ${ctx.refs.length}\n- 참고 태그: ${ctx.tags.slice(0, 8).join(', ') || '없음'}\n- 관련 링크: ${ctx.links.slice(0, 8).join(', ') || '없음'}\n\n### 참고 문서\n${refLines}\n\n### 요약\n${ctx.summary}\n`;
+    } catch { return ''; }
+}
+
+// ── V73 IPC 핸들러 ────────────────────────────────────────────
+ipcMain.handle('vault-status',      (_, p) => getVaultStatus(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH));
+ipcMain.handle('scan-vault',        (_, p) => scanVault(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH));
+ipcMain.handle('search-vault',      (_, p, query) => searchVault(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH, query || ''));
+ipcMain.handle('read-vault-note',   (_, p, notePath) => readVaultNote(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH, notePath || ''));
+ipcMain.handle('get-related-notes', (_, p, topic) => getRelatedNotes(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH, topic || ''));
+ipcMain.handle('create-vault-note', (_, p, folder, title, content, tags) => createVaultNote(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH, folder, title, content, tags));
+ipcMain.handle('update-vault-note', (_, p, notePath, content, overwrite) => updateVaultNote(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH, notePath, content, overwrite));
+ipcMain.handle('get-recent-notes',  (_, p, limit) => getRecentNotes(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH, limit));
+ipcMain.handle('get-vault-summary', (_, p) => getVaultSummary(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH));
+
+// ── V75 3D Inspector — 읽기 전용 에셋 뷰어 ──────────────────────
+/**
+ * generated_assets 디렉토리에서 GLB/GLTF/OBJ 파일 목록 반환
+ */
+function listGeneratedAssets(projectPath) {
+    const dir = getGeneratedAssetsDir(projectPath);
+    if (!fs.existsSync(dir)) return { ok: true, files: [] };
+    try {
+        const files = fs.readdirSync(dir)
+            .filter(f => /\.(glb|gltf|obj)$/i.test(f))
+            .map(f => {
+                const full = path.join(dir, f);
+                const st = fs.statSync(full);
+                return { name: f, path: full, ext: path.extname(f).toLowerCase().slice(1), size: st.size, mtime: st.mtime.toISOString() };
+            });
+        return { ok: true, files };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+/**
+ * 3D 파일 읽기 — generated_assets 범위 외 경로 차단 (읽기 전용)
+ */
+function read3dFile(filePath, projectPath) {
+    const allowedDir = path.resolve(getGeneratedAssetsDir(projectPath || DEFAULT_PROJECT_PATH));
+    const resolved   = path.resolve(filePath || '');
+    if (!resolved.startsWith(allowedDir + path.sep) && resolved !== allowedDir) {
+        return { ok: false, error: 'generated_assets 외부 경로 접근 차단' };
+    }
+    if (!fs.existsSync(resolved)) return { ok: false, error: '파일 없음' };
+    const ext = path.extname(resolved).toLowerCase().slice(1);
+    if (!['glb', 'gltf', 'obj'].includes(ext)) {
+        return { ok: false, error: `지원하지 않는 형식: ${ext} (지원: glb, gltf, obj)` };
+    }
+    try {
+        const stat = fs.statSync(resolved);
+        const data = fs.readFileSync(resolved).toString('base64');
+        return { ok: true, name: path.basename(resolved), ext, size: stat.size, mtime: stat.mtime.toISOString(), data };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// V78 — 3D Inspector 판정 시스템 + Apply Candidate 연결
+// ══════════════════════════════════════════════════════════════
+
+function get3DInspectionDir(projectPath) {
+    return path.join(projectPath, 'inspections', '3d_assets');
+}
+function get3DInspectionReportPath(projectPath) {
+    return path.join(projectPath, 'reports', '3d_inspection_report.md');
+}
+
+function create3DInspectionRecord(projectPath, inspectionData) {
+    const inspDir = get3DInspectionDir(projectPath);
+    if (!fs.existsSync(inspDir)) fs.mkdirSync(inspDir, { recursive: true });
+    const verdict = inspectionData.verdict || 'REVIEW';
+    if (!['PASS', 'REVIEW', 'REJECT'].includes(verdict))
+        return { ok: false, error: '유효하지 않은 verdict: ' + verdict };
+    const assetName = (inspectionData.assetName || 'unknown').replace(/[^a-zA-Z0-9_\-.가-힣]/g, '_');
+    const fileName  = assetName + '.inspection.md';
+    const filePath  = path.join(inspDir, fileName);
+    const now = new Date().toISOString();
+    const lines = [
+        `# 3D Asset Inspection: ${assetName}`, '',
+        '## 기본 정보',
+        `- assetName: ${assetName}`,
+        `- sourceFile: ${inspectionData.sourceFile || ''}`,
+        `- filePath: ${inspectionData.filePath || ''}`,
+        `- fileSizeMB: ${inspectionData.fileSizeMB || 0}`,
+        `- extension: ${inspectionData.extension || ''}`, '',
+        '## 모델 정보',
+        `- triangleCount: ${inspectionData.triangleCount || 0}`,
+        `- vertexCount: ${inspectionData.vertexCount || 0}`,
+        `- materialCount: ${inspectionData.materialCount || 0}`,
+        `- textureDetected: ${inspectionData.textureDetected ? 'true' : 'false'}`, '',
+        '## 검사 항목',
+        `- wireframeChecked: ${inspectionData.wireframeChecked ? 'true' : 'false'}`,
+        `- scaleChecked: ${inspectionData.scaleChecked ? 'true' : 'false'}`,
+        `- pivotChecked: ${inspectionData.pivotChecked ? 'true' : 'false'}`,
+        `- collisionNeeded: ${inspectionData.collisionNeeded ? 'true' : 'false'}`,
+        `- lodNeeded: ${inspectionData.lodNeeded ? 'true' : 'false'}`,
+        `- naniteRecommended: ${inspectionData.naniteRecommended ? 'true' : 'false'}`, '',
+        '## UE5 임포트',
+        `- ueImportPath: ${inspectionData.ueImportPath || ''}`, '',
+        '## 판정 결과',
+        `- verdict: ${verdict}`,
+        `- reason: ${inspectionData.reason || ''}`, '',
+        '## 기타',
+        `- inspectedAt: ${now}`,
+        `- inspectedBy: ${inspectionData.inspectedBy || 'ToribatAgent-V78'}`,
+        `- notes: ${inspectionData.notes || ''}`,
+    ];
+    try {
+        fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+        return { ok: true, filePath, fileName, assetName, verdict };
+    } catch (e) { return { ok: false, error: e.message }; }
+}
+
+function list3DInspectionRecords(projectPath) {
+    const inspDir = get3DInspectionDir(projectPath);
+    if (!fs.existsSync(inspDir)) return { ok: true, records: [] };
+    try {
+        const records = fs.readdirSync(inspDir)
+            .filter(f => f.endsWith('.inspection.md'))
+            .map(f => {
+                const fp = path.join(inspDir, f);
+                const c  = fs.readFileSync(fp, 'utf8');
+                const g  = (key) => { const m = c.match(new RegExp(`- ${key}: (.+)`)); return m ? m[1].trim() : ''; };
+                return {
+                    fileName: f, filePath: fp,
+                    verdict:     g('verdict') || 'REVIEW',
+                    assetName:   g('assetName'),
+                    reason:      g('reason'),
+                    fileSizeMB:  parseFloat(g('fileSizeMB')) || 0,
+                    inspectedAt: g('inspectedAt')
+                };
+            })
+            .sort((a, b) => b.inspectedAt.localeCompare(a.inspectedAt));
+        return { ok: true, records };
+    } catch (e) { return { ok: false, error: e.message, records: [] }; }
+}
+
+function read3DInspectionRecord(projectPath, inspectionFile) {
+    const filePath = path.join(get3DInspectionDir(projectPath), path.basename(inspectionFile));
+    if (!fs.existsSync(filePath)) return { ok: false, error: '검사 파일 없음: ' + inspectionFile };
+    try {
+        const c = fs.readFileSync(filePath, 'utf8');
+        const g = (key) => { const m = c.match(new RegExp(`- ${key}: (.+)`)); return m ? m[1].trim() : ''; };
+        return {
+            ok: true, fileName: path.basename(filePath),
+            assetName: g('assetName'), sourceFile: g('sourceFile'), filePath: g('filePath'),
+            fileSizeMB: parseFloat(g('fileSizeMB')) || 0, extension: g('extension'),
+            triangleCount: parseInt(g('triangleCount')) || 0, vertexCount: parseInt(g('vertexCount')) || 0,
+            materialCount: parseInt(g('materialCount')) || 0, textureDetected: g('textureDetected') === 'true',
+            wireframeChecked: g('wireframeChecked') === 'true', scaleChecked: g('scaleChecked') === 'true',
+            pivotChecked: g('pivotChecked') === 'true', collisionNeeded: g('collisionNeeded') === 'true',
+            lodNeeded: g('lodNeeded') === 'true', naniteRecommended: g('naniteRecommended') === 'true',
+            ueImportPath: g('ueImportPath'), verdict: g('verdict'), reason: g('reason'),
+            inspectedAt: g('inspectedAt'), inspectedBy: g('inspectedBy'), notes: g('notes'), raw: c
+        };
+    } catch (e) { return { ok: false, error: e.message }; }
+}
+
+function get3DInspectionSummary(projectPath) {
+    const { records } = list3DInspectionRecords(projectPath);
+    const counts = { PASS: 0, REVIEW: 0, REJECT: 0 };
+    (records || []).forEach(r => { if (counts[r.verdict] !== undefined) counts[r.verdict]++; });
+    return { ok: true, total: (records || []).length, ...counts, recent: (records || []).slice(0, 5) };
+}
+
+function generate3DInspectionReport(projectPath) {
+    const { records } = list3DInspectionRecords(projectPath);
+    const all      = records || [];
+    const pass     = all.filter(r => r.verdict === 'PASS');
+    const review   = all.filter(r => r.verdict === 'REVIEW');
+    const reject   = all.filter(r => r.verdict === 'REJECT');
+    const detailed = all.map(r => { const d = read3DInspectionRecord(projectPath, r.fileName); return d.ok ? d : r; });
+    const bigFiles   = detailed.filter(r => (r.fileSizeMB || 0) > 100).sort((a,b) => (b.fileSizeMB||0)-(a.fileSizeMB||0));
+    const lodList    = detailed.filter(r => r.lodNeeded    && r.verdict !== 'REJECT');
+    const naniteList = detailed.filter(r => r.naniteRecommended && r.verdict !== 'REJECT');
+    const candidates = detailed.filter(r => r.verdict === 'PASS' || r.verdict === 'REVIEW');
+    const now = new Date().toLocaleString('ko-KR');
+    const row = (l, v) => `| ${l} | ${v} |`;
+    let md = `# 3D Asset Inspection Report\n생성: ${now}\n\n## 전체 통계\n| 항목 | 수 |\n|------|----|
+${row('전체 검사', all.length)}
+${row('PASS', pass.length)}
+${row('REVIEW', review.length)}
+${row('REJECT', reject.length)}
+${row('Apply 후보', candidates.length)}
+
+## 최근 검사 목록\n`;
+    if (all.length === 0) md += '검사 기록 없음\n';
+    else all.slice(0, 10).forEach(r => { md += `- [${r.verdict}] ${(r.assetName || r.fileName).replace('.inspection.md','')} — ${r.reason || '사유 없음'}\n`; });
+    md += `\n## 큰 파일 목록 (100MB 초과)\n`;
+    if (bigFiles.length === 0) md += '없음\n'; else bigFiles.forEach(r => { md += `- ${r.assetName || r.fileName} (${r.fileSizeMB}MB) [${r.verdict}]\n`; });
+    md += `\n## LOD 필요 모델\n`;
+    if (lodList.length === 0) md += '없음\n'; else lodList.forEach(r => { md += `- ${r.assetName || r.fileName} [${r.verdict}]\n`; });
+    md += `\n## Nanite 추천 모델\n`;
+    if (naniteList.length === 0) md += '없음\n'; else naniteList.forEach(r => { md += `- ${r.assetName || r.fileName} [${r.verdict}]\n`; });
+    md += `\n## Apply 후보 모델 (PASS / REVIEW)\n`;
+    if (candidates.length === 0) md += '없음\n'; else candidates.forEach(r => { md += `- [${r.verdict}] ${r.assetName || r.fileName} — ${r.ueImportPath || '경로 미지정'}\n`; });
+    md += `\n## REJECT 사유 요약\n`;
+    if (reject.length === 0) md += '없음\n'; else reject.forEach(r => { md += `- ${(r.assetName || r.fileName).replace('.inspection.md','')} — ${r.reason || '사유 없음'}\n`; });
+    const reportPath = get3DInspectionReportPath(projectPath);
+    if (!fs.existsSync(path.dirname(reportPath))) fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+    try {
+        fs.writeFileSync(reportPath, md, 'utf8');
+        return { ok: true, reportPath, total: all.length, PASS: pass.length, REVIEW: review.length, REJECT: reject.length };
+    } catch (e) { return { ok: false, error: e.message }; }
+}
+
+function promoteInspectionToApplyCandidate(projectPath, inspectionFile) {
+    const data = read3DInspectionRecord(projectPath, inspectionFile);
+    if (!data.ok) return { ok: false, error: '검사 파일 읽기 실패: ' + (data.error || '') };
+    if (data.verdict === 'REJECT') return { ok: false, error: 'REJECT 모델은 apply candidate로 승격 금지', verdict: 'REJECT' };
+    const name  = (data.assetName || '').toLowerCase();
+    const hint  = ((data.reason || '') + (data.ueImportPath || '')).toLowerCase();
+    const wKeys = ['architecture','environment','modular','world','건물','환경','모듈','세계','배경'];
+    const folder = wKeys.some(k => name.includes(k) || hint.includes(k)) ? 'apply_candidates/world' : 'apply_candidates/art';
+    const dir = path.join(projectPath, folder);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const cName = (data.assetName || 'unknown').replace(/[^a-zA-Z0-9_\-.가-힣]/g, '_') + '_3d_candidate.md';
+    const cPath = path.join(dir, cName);
+    const now   = new Date().toISOString();
+    const lines = [
+        '# Apply Candidate (3D Asset)',
+        `생성: ${now}`, '',
+        '## 출처',
+        `- source model file: ${data.sourceFile || data.filePath || ''}`,
+        `- inspection file: ${path.basename(inspectionFile)}`,
+        `- verdict: ${data.verdict}`,
+        `- reason: ${data.reason || ''}`, '',
+        '## UE5 임포트 정보',
+        `- recommended UE import path: ${data.ueImportPath || '미지정'}`,
+        `- collisionNeeded: ${data.collisionNeeded ? 'true' : 'false'}`,
+        `- lodNeeded: ${data.lodNeeded ? 'true' : 'false'}`,
+        `- naniteRecommended: ${data.naniteRecommended ? 'true' : 'false'}`, '',
+        '## 모델 정보',
+        `- file size: ${data.fileSizeMB}MB`,
+        `- triangle count: ${data.triangleCount}`,
+        `- vertex count: ${data.vertexCount}`,
+        `- material count: ${data.materialCount}`, '',
+        '## 적용 안전 규칙',
+        '- actual content copy: false',
+        '- allowRealApply required: true',
+    ];
+    try {
+        fs.writeFileSync(cPath, lines.join('\n'), 'utf8');
+        return { ok: true, candidatePath: cPath, candidateName: cName, targetFolder: folder, verdict: data.verdict };
+    } catch (e) { return { ok: false, error: e.message }; }
+}
+
+// ── V75 IPC 핸들러 ────────────────────────────────────────────
+ipcMain.handle('list-generated-assets', (_, p) => listGeneratedAssets(getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
+ipcMain.handle('read-3d-file', (_, filePath, p) => read3dFile(filePath || '', getWritableProjectPath(p || DEFAULT_PROJECT_PATH)));
+
+// ── V78 IPC 핸들러 ────────────────────────────────────────────
+ipcMain.handle('create-3d-inspection-record', (_, p, inspData) => {
+    const result = create3DInspectionRecord(p || DEFAULT_PROJECT_PATH, inspData || {});
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        if (result.ok) {
+            const v = result.verdict;
+            recordAgentMemory(vp, {
+                task: `3D 모델 검사 완료: ${inspData?.assetName || ''}`,
+                decision: v + ' 판정',
+                result: inspData?.reason || ''
+            });
+            recordDecision(vp, '3D 모델은 Inspector 판정 후 apply candidate로 승격한다', 'V78 워크플로');
+            if (v === 'REJECT') recordDecision(vp, 'REJECT 모델은 UE5 후보로 승격하지 않는다', inspData?.reason || '품질 기준 미달');
+        }
+    } catch { /* 비중단 */ }
+    return result;
+});
+ipcMain.handle('list-3d-inspection-records',  (_, p) => list3DInspectionRecords(p || DEFAULT_PROJECT_PATH));
+ipcMain.handle('read-3d-inspection-record',   (_, p, f) => read3DInspectionRecord(p || DEFAULT_PROJECT_PATH, f || ''));
+ipcMain.handle('get-3d-inspection-summary',   (_, p) => get3DInspectionSummary(p || DEFAULT_PROJECT_PATH));
+ipcMain.handle('generate-3d-inspection-report', (_, p) => {
+    const result = generate3DInspectionReport(p || DEFAULT_PROJECT_PATH);
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        if (result.ok) recordAgentMemory(vp, {
+            task: '3D Inspection Report 생성',
+            decision: `전체 ${result.total}건 보고서 생성`,
+            result: `PASS:${result.PASS} REVIEW:${result.REVIEW} REJECT:${result.REJECT}`
+        });
+    } catch { /* 비중단 */ }
+    return result;
+});
+ipcMain.handle('promote-3d-inspection-to-candidate', (_, p, f) => {
+    const result = promoteInspectionToApplyCandidate(p || DEFAULT_PROJECT_PATH, f || '');
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        if (result.ok) {
+            recordAgentMemory(vp, {
+                task: `3D Apply Candidate 승격: ${path.basename(f || '')}`,
+                decision: `${result.targetFolder}으로 승격`,
+                result: result.candidateName || ''
+            });
+            recordDecision(vp, 'PASS/REVIEW 모델만 art/world 후보로 연결한다', 'V78 apply candidate 승격 워크플로');
+        }
+    } catch { /* 비중단 */ }
+    return result;
+});
+
+// ══════════════════════════════════════════════════════════════
+// V76 — 무료 로컬 3D 생성 AI Manager
+// ══════════════════════════════════════════════════════════════
+
+const ASSET_GENERATOR_CONFIG_FILE = path.join(APP_ROOT, 'asset_generator.config.json');
+
+const DEFAULT_ASSET_GENERATOR_CONFIG = {
+    enabled: false,
+    defaultProvider: 'none',
+    dryRun: true,
+    outputDir: DEFAULT_PROJECT_PATH + '\\generated_assets',
+    generatorTimeoutMinutes: 120,
+    providers: {
+        hunyuan3d:   { enabled: false, command: '', workingDir: '', outputDir: '', supportsImageTo3D: true,  supportsTextTo3D: true,  usesWsl2: true  },
+        trellis:     { enabled: false, command: '', workingDir: '', outputDir: '', supportsImageTo3D: true,  supportsTextTo3D: true,  usesWsl2: true  },
+        stableFast3D:{ enabled: false, command: '', workingDir: '', outputDir: '', supportsImageTo3D: true,  supportsTextTo3D: false, usesWsl2: false },
+        blender:     { enabled: false, command: '', workingDir: '', outputDir: '', supportsImageTo3D: false, supportsTextTo3D: false, usesWsl2: false }
+    },
+    allowedOutputFormats: ['.glb', '.gltf', '.obj', '.fbx'],
+    maxFileSizeMBWarning: 100,
+    maxFileSizeMBReject: 300,
+    allowExternalPaidApi: false
+};
+
+function loadAssetGeneratorConfig() {
+    try {
+        if (fs.existsSync(ASSET_GENERATOR_CONFIG_FILE)) {
+            const raw = JSON.parse(fs.readFileSync(ASSET_GENERATOR_CONFIG_FILE, 'utf8'));
+            // 항상 enabled/dryRun/allowExternalPaidApi 기본값 강제 적용
+            return Object.assign({}, DEFAULT_ASSET_GENERATOR_CONFIG, raw, {
+                enabled: raw.enabled === true,
+                dryRun: raw.dryRun !== false,
+                allowExternalPaidApi: raw.allowExternalPaidApi === true
+            });
+        }
+    } catch (e) {
+        sendLog(`asset_generator.config.json 로드 실패: ${e.message}`, 'warn');
+    }
+    return Object.assign({}, DEFAULT_ASSET_GENERATOR_CONFIG);
+}
+
+function saveAssetGeneratorConfig(cfg) {
+    try {
+        // 안전장치: 저장 시에도 allowExternalPaidApi 강제 false (명시적 true만 허용)
+        const safe = Object.assign({}, cfg, {
+            allowExternalPaidApi: cfg.allowExternalPaidApi === true
+        });
+        fs.writeFileSync(ASSET_GENERATOR_CONFIG_FILE, JSON.stringify(safe, null, 2), 'utf8');
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+function get3DGeneratorReportFile(projectPath) {
+    return path.join(projectPath || DEFAULT_PROJECT_PATH, 'reports', '3d_generator_report.md');
+}
+
+function getAssetGeneratorStatus(projectPath) {
+    const config = loadAssetGeneratorConfig();
+    const pendingDir = path.join(getAssetGenerationQueueDir(projectPath), 'pending');
+    const doneDir    = path.join(getAssetGenerationQueueDir(projectPath), 'done');
+    const failedDir  = path.join(getAssetGenerationQueueDir(projectPath), 'failed');
+    const genDir     = getGeneratedAssetsDir(projectPath);
+
+    const count = (dir) => {
+        if (!fs.existsSync(dir)) return 0;
+        return fs.readdirSync(dir).filter(f => f.endsWith('.job.md')).length;
+    };
+    const assetCount = () => {
+        if (!fs.existsSync(genDir)) return 0;
+        return fs.readdirSync(genDir).filter(f => /\.(glb|gltf|obj|fbx)$/i.test(f)).length;
+    };
+
+    const providerKey = config.defaultProvider;
+    const provider    = config.providers[providerKey] || null;
+    const providerReady = !!(provider && provider.enabled && provider.command && provider.workingDir);
+    const canRun = config.enabled && !config.dryRun && providerReady;
+
+    return {
+        ok: true,
+        enabled: config.enabled,
+        dryRun: config.dryRun,
+        defaultProvider: providerKey,
+        providerReady,
+        canRun,
+        allowExternalPaidApi: config.allowExternalPaidApi,
+        pendingJobs: count(pendingDir),
+        doneJobs:    count(doneDir),
+        failedJobs:  count(failedDir),
+        generatedAssets: assetCount(),
+        configFile: ASSET_GENERATOR_CONFIG_FILE
+    };
+}
+
+function build3DGenerationCommand(job, config) {
+    config = config || loadAssetGeneratorConfig();
+    const providerKey = config.defaultProvider;
+    const provider    = config.providers[providerKey] || {};
+    const cmd         = provider.command  || '(command 미설정)';
+    const rawOutDir   = provider.outputDir || config.outputDir;
+    const jobContent  = typeof job === 'string' ? job : (job.jobContent || '');
+
+    const srcMatch    = jobContent.match(/sourceImage:\s*(.+)/);
+    const promptMatch = jobContent.match(/prompt:\s*(.+)/);
+    const rawSrc      = srcMatch   ? srcMatch[1].trim()   : '';
+    const prompt      = promptMatch? promptMatch[1].trim(): '';
+
+    // WSL2 기반 provider는 경로 자동 변환
+    const useWsl = !!(provider.usesWsl2);
+    const outDir     = useWsl ? toWslPath(rawOutDir)  : rawOutDir;
+    const sourceImage = useWsl ? toWslPath(rawSrc)    : rawSrc;
+
+    switch (providerKey) {
+        case 'trellis':
+            return sourceImage
+                ? `${cmd} --image "${sourceImage}" --output-dir "${outDir}"`
+                : `${cmd} --text "${prompt}" --output-dir "${outDir}"`;
+        case 'hunyuan3d':
+            return sourceImage
+                ? `${cmd} image_to_3d --image "${sourceImage}" --output "${outDir}"`
+                : `${cmd} text_to_3d --text "${prompt}" --output "${outDir}"`;
+        case 'stableFast3D':
+            return `${cmd} --image "${sourceImage}" --output-dir "${outDir}"`;
+        case 'blender':
+            return `${cmd} --background --python "${provider.workingDir}/generate.py" -- --output "${outDir}"`;
+        default:
+            return `${cmd}`;
+    }
+}
+
+/**
+ * 로컬 3D 생성기 실행 — enabled=true + dryRun=false + provider 설정 완료일 때만 실행
+ */
+function runLocal3DGenerator(jobFile, projectPath) {
+    const config = loadAssetGeneratorConfig();
+
+    // ── 안전장치 (순서 중요) ──────────────────────────────────
+    if (!config.enabled)             return { ok: false, reason: 'enabled=false — 실행 금지' };
+    if (config.dryRun)               return { ok: false, reason: 'dryRun=true — 실제 실행 금지', dryRun: true };
+    if (config.allowExternalPaidApi) return { ok: false, reason: 'allowExternalPaidApi=true — 외부 유료 API 차단' };
+
+    const providerKey = config.defaultProvider;
+    if (!providerKey || providerKey === 'none') return { ok: false, reason: 'provider 미설정' };
+
+    const provider = config.providers[providerKey];
+    if (!provider || !provider.enabled) return { ok: false, reason: `provider '${providerKey}' 비활성화` };
+    if (!provider.command)             return { ok: false, reason: 'command 빈 값 — 실행 금지' };
+    if (!provider.workingDir || !fs.existsSync(provider.workingDir)) {
+        return { ok: false, reason: 'workingDir 없음 또는 존재하지 않음 — 실행 금지' };
+    }
+
+    // outputDir은 반드시 generated_assets 내부
+    const resolvedOut  = path.resolve(provider.outputDir || config.outputDir);
+    const allowedOut   = path.resolve(getGeneratedAssetsDir(projectPath));
+    if (!resolvedOut.startsWith(allowedOut)) {
+        return { ok: false, reason: 'outputDir이 generated_assets 외부 — 실행 금지' };
+    }
+
+    if (!jobFile || !fs.existsSync(jobFile)) return { ok: false, reason: '작업 파일 없음' };
+
+    // ── V77: 사전 점검 (FAIL 존재 시 실행 금지) ──────────────
+    const preflight = runPreflightChecks(projectPath);
+    if (!preflight.ok) {
+        const reason = `사전 점검 실패: ${preflight.failItems.join(' | ')}`;
+        moveGenerationJobToFailed(jobFile, projectPath, reason);
+        try {
+            const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+            recordAgentMemory(vp, { task: '3D 생성 사전 점검', decision: '실행 차단', result: reason });
+        } catch { /* 비중단 */ }
+        return { ok: false, reason, preflight };
+    }
+
+    const jobContent = fs.readFileSync(jobFile, 'utf8');
+    const cmdStr     = build3DGenerationCommand({ jobContent, jobFile }, config);
+    const [cmd, ...args] = cmdStr.split(' ');
+
+    // 로그 파일 준비
+    const logTs  = new Date().toISOString().replace(/[:.]/g, '-');
+    const logDir = path.join(projectPath, 'reports');
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    const logFile = path.join(logDir, `3d_gen_${logTs}.log`);
+    const logLines = [`[${new Date().toISOString()}] spawn: ${cmdStr}\n`];
+
+    // ── V77: 타임아웃 설정 ────────────────────────────────────
+    const timeoutMs = (config.generatorTimeoutMinutes || 120) * 60 * 1000;
+
+    return new Promise((resolve) => {
+        let proc;
+        try {
+            proc = spawn(cmd, args, { cwd: provider.workingDir, shell: true });
+        } catch (e) {
+            write3DGenerationLog(projectPath, logLines.join('') + `\nERROR: ${e.message}`);
+            moveGenerationJobToFailed(jobFile, projectPath, e.message);
+            resolve({ ok: false, reason: 'spawn 실패: ' + e.message });
+            return;
+        }
+
+        let timedOut = false;
+        const timeoutHandle = setTimeout(() => {
+            timedOut = true;
+            try { proc.kill('SIGTERM'); } catch {}
+            const timeoutReason = `타임아웃: ${config.generatorTimeoutMinutes}분 초과`;
+            logLines.push(`\n[TIMEOUT] ${timeoutReason}\n`);
+            write3DGenerationLog(projectPath, logLines.join(''));
+            moveGenerationJobToFailed(jobFile, projectPath, timeoutReason);
+            try {
+                const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+                recordAgentMemory(vp, { task: '3D 생성 타임아웃', decision: '프로세스 강제 종료', result: timeoutReason });
+            } catch { /* 비중단 */ }
+            resolve({ ok: false, reason: timeoutReason, timedOut: true });
+        }, timeoutMs);
+
+        proc.stdout.on('data', (d) => logLines.push(d.toString()));
+        proc.stderr.on('data', (d) => logLines.push('[ERR] ' + d.toString()));
+
+        proc.on('close', (code) => {
+            if (timedOut) return; // 타임아웃이 먼저 처리됨
+            clearTimeout(timeoutHandle);
+            const logContent = logLines.join('');
+            write3DGenerationLog(projectPath, logContent);
+            fs.writeFileSync(logFile, logContent, 'utf8');
+            if (code === 0) {
+                moveGenerationJobToDone(jobFile, projectPath);
+                resolve({ ok: true, exitCode: code, logFile });
+            } else {
+                moveGenerationJobToFailed(jobFile, projectPath, `exit code ${code}`);
+                resolve({ ok: false, reason: `exit code ${code}`, logFile });
+            }
+        });
+
+        proc.on('error', (e) => {
+            if (timedOut) return;
+            clearTimeout(timeoutHandle);
+            const logContent = logLines.join('') + `\nERROR: ${e.message}`;
+            write3DGenerationLog(projectPath, logContent);
+            moveGenerationJobToFailed(jobFile, projectPath, e.message);
+            resolve({ ok: false, reason: e.message });
+        });
+    });
+}
+
+function detectGenerated3DAssets(projectPath) {
+    const genDir = getGeneratedAssetsDir(projectPath);
+    if (!fs.existsSync(genDir)) return { ok: true, assets: [] };
+    try {
+        const assets = fs.readdirSync(genDir)
+            .filter(f => /\.(glb|gltf|obj|fbx|ply)$/i.test(f))
+            .map(f => {
+                const full = path.join(genDir, f);
+                const st   = fs.statSync(full);
+                const sizeMB = st.size / (1024 * 1024);
+                const config = loadAssetGeneratorConfig();
+                const warn   = sizeMB > config.maxFileSizeMBWarning;
+                const reject = sizeMB > config.maxFileSizeMBReject;
+                return { name: f, path: full, ext: path.extname(f).toLowerCase().slice(1), sizeMB: +sizeMB.toFixed(2), warn, reject, mtime: st.mtime.toISOString() };
+            });
+        return { ok: true, assets, dir: genDir };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+function write3DGenerationLog(projectPath, content) {
+    try {
+        const reportFile = get3DGeneratorReportFile(projectPath);
+        const header     = `# 3D Generator Report\n\n생성: ${new Date().toLocaleString('ko-KR')}\n\n---\n\n`;
+        if (!fs.existsSync(reportFile)) {
+            fs.writeFileSync(reportFile, header + content, 'utf8');
+        } else {
+            fs.appendFileSync(reportFile, `\n---\n\n[${new Date().toISOString()}]\n\n${content}`, 'utf8');
+        }
+        return { ok: true, file: reportFile };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+function moveGenerationJobToDone(jobFile, projectPath) {
+    try {
+        const doneDir = path.join(getAssetGenerationQueueDir(projectPath), 'done');
+        if (!fs.existsSync(doneDir)) fs.mkdirSync(doneDir, { recursive: true });
+        const dest = path.join(doneDir, path.basename(jobFile));
+        fs.renameSync(jobFile, dest);
+        return { ok: true, dest };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+function moveGenerationJobToFailed(jobFile, projectPath, reason) {
+    try {
+        const failedDir = path.join(getAssetGenerationQueueDir(projectPath), 'failed');
+        if (!fs.existsSync(failedDir)) fs.mkdirSync(failedDir, { recursive: true });
+        const dest = path.join(failedDir, path.basename(jobFile));
+        let content = fs.existsSync(jobFile) ? fs.readFileSync(jobFile, 'utf8') : '';
+        content += `\n\n## 실패 원인\n\n- 시각: ${new Date().toISOString()}\n- 이유: ${reason}\n`;
+        fs.writeFileSync(dest, content, 'utf8');
+        if (fs.existsSync(jobFile)) fs.unlinkSync(jobFile);
+        return { ok: true, dest };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+/**
+ * dry-run: 실제 실행 없이 실행 예정 명령만 반환
+ */
+function dryRun3DGeneration(jobFile, projectPath) {
+    const config      = loadAssetGeneratorConfig();
+    const providerKey = config.defaultProvider;
+    const provider    = config.providers[providerKey] || {};
+    const jobContent  = fs.existsSync(jobFile) ? fs.readFileSync(jobFile, 'utf8') : '';
+    const cmdStr      = build3DGenerationCommand({ jobContent, jobFile }, config);
+
+    const checks = [
+        { label: 'enabled',        ok: config.enabled,               msg: config.enabled ? 'true' : 'false (실행 불가)' },
+        { label: 'dryRun',         ok: !config.dryRun,               msg: config.dryRun ? 'true (실행 불가)' : 'false' },
+        { label: 'provider',       ok: !!provider.command,           msg: provider.command || '(미설정)' },
+        { label: 'workingDir',     ok: !!(provider.workingDir && fs.existsSync(provider.workingDir)), msg: provider.workingDir || '(미설정)' },
+        { label: 'allowExternalPaidApi', ok: !config.allowExternalPaidApi, msg: config.allowExternalPaidApi ? 'true (주의)' : 'false' }
+    ];
+
+    const allPass = checks.every(c => c.ok);
+    return { ok: true, dryRun: true, canRun: allPass, command: cmdStr, checks, provider: providerKey };
+}
+
+// ══════════════════════════════════════════════════════════════
+// V77 — 실행 안정화 및 환경 점검 시스템
+// ══════════════════════════════════════════════════════════════
+
+/** safe execSync 래퍼 — 실패해도 앱 중단 없음 */
+function tryExec(cmd, opts) {
+    try {
+        const out = execSync(cmd, { stdio: 'pipe', timeout: 8000, windowsHide: true, ...opts });
+        return { ok: true, output: (out || '').toString().trim() };
+    } catch (e) {
+        return { ok: false, output: '', error: e.message };
+    }
+}
+
+/** Windows 경로 → WSL2 경로 변환 (D:\path → /mnt/d/path) */
+function toWslPath(winPath) {
+    if (!winPath) return winPath || '';
+    const m = winPath.match(/^([A-Za-z]):[\\\/](.*)/);
+    if (!m) return winPath;
+    return `/mnt/${m[1].toLowerCase()}/${m[2].replace(/\\/g, '/')}`;
+}
+
+/** GPU 감지 및 VRAM 판정 */
+function detectGpu() {
+    // 1차: nvidia-smi (가장 정확)
+    const nvSmi = tryExec('nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader,nounits');
+    if (nvSmi.ok && nvSmi.output) {
+        const parts = nvSmi.output.split(', ');
+        const name   = (parts[0] || '').trim();
+        const vramMB = parseInt((parts[1] || '0').trim(), 10);
+        const driver = (parts[2] || '').trim();
+        const vramGB = +(vramMB / 1024).toFixed(1);
+        const level  = vramGB >= 8 ? 'PASS' : vramGB >= 6 ? 'WARNING' : 'FAIL';
+        return { ok: true, name, vendor: 'NVIDIA', vramGB, vramMB, driver, level, source: 'nvidia-smi' };
+    }
+    // 2차: WMIC
+    const wmic = tryExec('wmic path win32_videocontroller get name,AdapterRAM,DriverVersion /format:list');
+    if (wmic.ok && wmic.output) {
+        const lines  = wmic.output.split(/\r?\n/);
+        const get    = (prefix) => (lines.find(l => l.startsWith(prefix)) || '').split('=')[1]?.trim() || '';
+        const name   = get('Name=');
+        const ramStr = get('AdapterRAM=');
+        const driver = get('DriverVersion=');
+        const vramBytes = parseInt(ramStr || '0', 10);
+        const vramGB = +(vramBytes / (1024 ** 3)).toFixed(1);
+        const vendor = name.includes('NVIDIA') ? 'NVIDIA' : name.includes('AMD') ? 'AMD' : name.includes('Intel') ? 'Intel' : '알 수 없음';
+        const level  = vramGB >= 8 ? 'PASS' : vramGB >= 6 ? 'WARNING' : 'FAIL';
+        return { ok: true, name, vendor, vramGB, driver, level, source: 'wmic' };
+    }
+    return { ok: false, name: '감지 실패', vendor: '알 수 없음', vramGB: 0, level: 'FAIL', source: 'none' };
+}
+
+/** 전체 환경 상태 점검 */
+function getEnvironmentStatus() {
+    const items = {};
+
+    // Windows 버전
+    const winVer = tryExec('cmd /c ver');
+    items.windows = { label: 'Windows', value: winVer.ok ? winVer.output : '감지 실패', level: winVer.ok ? 'PASS' : 'WARNING' };
+
+    // CPU
+    const cpus = os.cpus();
+    items.cpu = { label: 'CPU', value: `${(cpus[0] || {}).model || '알 수 없음'} (${cpus.length}코어)`, level: 'PASS' };
+
+    // RAM
+    const ramGB = +(os.totalmem() / (1024 ** 3)).toFixed(1);
+    items.ram = { label: 'RAM', value: `${ramGB}GB`, level: ramGB >= 16 ? 'PASS' : ramGB >= 8 ? 'WARNING' : 'FAIL' };
+
+    // GPU / VRAM
+    const gpu = detectGpu();
+    items.gpu  = { label: 'GPU',  value: `${gpu.name} (${gpu.vramGB}GB VRAM)`, level: gpu.level };
+    items.nvidia = { label: 'NVIDIA GPU', value: gpu.vendor === 'NVIDIA' ? gpu.name : '없음', level: gpu.vendor === 'NVIDIA' ? 'PASS' : 'WARNING' };
+
+    // CUDA
+    const cuda   = tryExec('nvcc --version');
+    const cudaEnv = process.env.CUDA_PATH || '';
+    const hasCuda = cuda.ok || !!cudaEnv;
+    const cudaVer = cuda.ok ? ((cuda.output.match(/release (\S+),/) || [])[1] || '버전 미확인')
+                             : (cudaEnv ? `CUDA_PATH: ${cudaEnv}` : '미설치');
+    items.cuda = { label: 'CUDA', value: cudaVer, level: hasCuda ? 'PASS' : 'FAIL' };
+
+    // Python
+    const py  = tryExec('python --version');
+    const py3 = py.ok ? { ok: false } : tryExec('python3 --version');
+    const hasPy = py.ok || py3.ok;
+    items.python = { label: 'Python', value: hasPy ? (py.ok ? py.output : py3.output) : '미설치', level: hasPy ? 'PASS' : 'FAIL' };
+
+    // pip
+    const pip = tryExec('pip --version');
+    items.pip = { label: 'pip', value: pip.ok ? pip.output.split(' ').slice(0, 2).join(' ') : '미설치', level: pip.ok ? 'PASS' : 'WARNING' };
+
+    // Git
+    const git = tryExec('git --version');
+    items.git = { label: 'Git', value: git.ok ? git.output : '미설치', level: git.ok ? 'PASS' : 'WARNING' };
+
+    // WSL2
+    const wslSt = tryExec('wsl --status');
+    const wslLv = tryExec('wsl -l -v');
+    const hasWsl2 = (wslSt.ok && wslSt.output.includes('2')) || (wslLv.ok && wslLv.output.includes('2'));
+    items.wsl2 = { label: 'WSL2', value: hasWsl2 ? 'WSL2 설치됨' : (wslSt.ok ? 'WSL (버전 미확인)' : '미설치'), level: hasWsl2 ? 'PASS' : 'WARNING' };
+
+    // Node / npm
+    const nodeVer = tryExec('node --version');
+    const npmVer  = tryExec('npm --version');
+    items.node = { label: 'Node.js', value: nodeVer.ok ? nodeVer.output : '감지 실패', level: nodeVer.ok ? 'PASS' : 'WARNING' };
+    items.npm  = { label: 'npm',     value: npmVer.ok  ? npmVer.output  : '감지 실패', level: npmVer.ok  ? 'PASS' : 'WARNING' };
+
+    const levels  = Object.values(items).map(i => i.level);
+    const overall = levels.includes('FAIL') ? 'FAIL' : levels.includes('WARNING') ? 'WARNING' : 'PASS';
+    return { ok: true, overall, items };
+}
+
+/** Provider별 VRAM/CUDA/Python/WSL2 호환성 확인 */
+function checkProviderCompatibility(providerKey) {
+    const REQS = {
+        trellis:     { label: 'TRELLIS (Microsoft)',         vramMin: 8,  needsCuda: true,  needsPython: true,  needsWsl2: true  },
+        hunyuan3d:   { label: 'Hunyuan3D (Tencent)',         vramMin: 16, needsCuda: true,  needsPython: true,  needsWsl2: true  },
+        stableFast3D:{ label: 'Stable Fast 3D (Stability)',  vramMin: 6,  needsCuda: true,  needsPython: true,  needsWsl2: false },
+        blender:     { label: 'Blender (절차적)',            vramMin: 0,  needsCuda: false, needsPython: false, needsWsl2: false }
+    };
+    const req = REQS[providerKey];
+    if (!req) return { ok: false, error: `알 수 없는 provider: ${providerKey}` };
+
+    const env  = getEnvironmentStatus();
+    const gpu  = detectGpu();
+    const checks = [];
+
+    // VRAM
+    const vramLevel = gpu.vramGB >= req.vramMin ? 'PASS' : gpu.vramGB >= req.vramMin - 2 ? 'WARNING' : 'FAIL';
+    checks.push({ label: 'VRAM', message: `${gpu.vramGB}GB (요구: ${req.vramMin}GB+)`, level: vramLevel });
+
+    // CUDA
+    if (req.needsCuda) {
+        const c = env.items.cuda;
+        checks.push({ label: 'CUDA', message: c.value, level: c.level === 'PASS' ? 'PASS' : 'FAIL' });
+    }
+
+    // Python
+    if (req.needsPython) {
+        const p = env.items.python;
+        checks.push({ label: 'Python', message: p.value, level: p.level === 'PASS' ? 'PASS' : 'FAIL' });
+    }
+
+    // WSL2 (WARNING만 — 없어도 실행 시도 가능)
+    if (req.needsWsl2) {
+        const w = env.items.wsl2;
+        checks.push({ label: 'WSL2', message: w.value, level: w.level === 'PASS' ? 'PASS' : 'WARNING' });
+    }
+
+    const overall = checks.some(c => c.level === 'FAIL') ? 'FAIL' : checks.some(c => c.level === 'WARNING') ? 'WARNING' : 'PASS';
+    return { ok: true, provider: providerKey, label: req.label, checks, overall };
+}
+
+/** Provider 설치 감지 — Installed / Partial / Missing */
+function detectProviderInstallation(providerKey) {
+    const config   = loadAssetGeneratorConfig();
+    const provider = config.providers[providerKey];
+    if (!provider) return { status: 'Missing', details: 'provider 설정 없음' };
+
+    const checks = [];
+    const hasWorkDir = !!(provider.workingDir && fs.existsSync(provider.workingDir));
+    checks.push({ label: 'workingDir', ok: hasWorkDir, value: provider.workingDir || '(미설정)' });
+
+    const PROVIDER_FILES = {
+        trellis:     ['requirements.txt', 'infer.py'],
+        hunyuan3d:   ['requirements.txt', 'infer.py'],
+        stableFast3D:['requirements.txt', 'run.py'],
+        blender:     []
+    };
+    for (const f of (PROVIDER_FILES[providerKey] || [])) {
+        const fp  = provider.workingDir ? path.join(provider.workingDir, f) : null;
+        const ok  = !!(fp && fs.existsSync(fp));
+        checks.push({ label: f, ok, value: fp || '(workingDir 없음)' });
+    }
+
+    if (provider.command) {
+        const r = tryExec(`${provider.command} --version`);
+        checks.push({ label: 'command 실행 가능', ok: r.ok, value: provider.command });
+    }
+
+    const allPass = checks.every(c => c.ok);
+    const anyPass = checks.some(c => c.ok);
+    const status  = allPass ? 'Installed' : anyPass ? 'Partial' : 'Missing';
+    return { ok: true, status, provider: providerKey, checks };
+}
+
+/** 생성 실행 전 사전 점검 — FAIL 존재 시 실행 금지 */
+function runPreflightChecks(projectPath) {
+    const config      = loadAssetGeneratorConfig();
+    const providerKey = config.defaultProvider;
+    const failItems   = [];
+    const warnItems   = [];
+    const passItems   = [];
+
+    // 환경 점검
+    try {
+        const env = getEnvironmentStatus();
+        for (const [, v] of Object.entries(env.items)) {
+            if (v.level === 'FAIL')    failItems.push(`[ENV] ${v.label}: ${v.value}`);
+            else if (v.level === 'WARNING') warnItems.push(`[ENV] ${v.label}: ${v.value}`);
+            else passItems.push(`[ENV] ${v.label}`);
+        }
+    } catch (e) { warnItems.push(`[ENV] 점검 오류: ${e.message}`); }
+
+    // GPU
+    try {
+        const gpu = detectGpu();
+        if (gpu.level === 'FAIL')    failItems.push(`[GPU] VRAM 부족: ${gpu.vramGB}GB`);
+        else if (gpu.level === 'WARNING') warnItems.push(`[GPU] VRAM 제한: ${gpu.vramGB}GB`);
+        else passItems.push(`[GPU] ${gpu.name} ${gpu.vramGB}GB`);
+    } catch (e) { warnItems.push(`[GPU] 감지 오류: ${e.message}`); }
+
+    // Provider 호환성
+    if (providerKey && providerKey !== 'none') {
+        try {
+            const compat = checkProviderCompatibility(providerKey);
+            for (const c of (compat.checks || [])) {
+                if (c.level === 'FAIL')    failItems.push(`[PROVIDER] ${c.label}: ${c.message}`);
+                else if (c.level === 'WARNING') warnItems.push(`[PROVIDER] ${c.label}: ${c.message}`);
+                else passItems.push(`[PROVIDER] ${c.label}`);
+            }
+        } catch (e) { warnItems.push(`[PROVIDER] 호환성 오류: ${e.message}`); }
+    }
+
+    // Config 검증
+    if (!config.outputDir) failItems.push('[CONFIG] outputDir 미설정');
+    const prov = config.providers[providerKey];
+    if (!prov?.command)    failItems.push('[CONFIG] command 미설정');
+    if (!prov?.workingDir) failItems.push('[CONFIG] workingDir 미설정');
+
+    // 경로 준비
+    const genDir = getGeneratedAssetsDir(projectPath);
+    if (!fs.existsSync(genDir)) {
+        try { fs.mkdirSync(genDir, { recursive: true }); passItems.push('[PATH] generated_assets 생성됨'); }
+        catch (e) { failItems.push(`[PATH] generated_assets 생성 실패: ${e.message}`); }
+    } else {
+        passItems.push('[PATH] generated_assets 존재');
+    }
+
+    return { ok: failItems.length === 0, failItems, warnItems, passItems };
+}
+
+// ── V77 IPC 핸들러 ────────────────────────────────────────────
+ipcMain.handle('get-environment-status',      () => getEnvironmentStatus());
+ipcMain.handle('detect-gpu',                  () => detectGpu());
+ipcMain.handle('check-provider-compatibility',(_, providerKey) => checkProviderCompatibility(providerKey || 'trellis'));
+ipcMain.handle('detect-provider-installation',(_, providerKey) => detectProviderInstallation(providerKey || 'trellis'));
+ipcMain.handle('run-preflight-checks',        (_, p) => {
+    const result = runPreflightChecks(p || DEFAULT_PROJECT_PATH);
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        recordAgentMemory(vp, {
+            task: '3D Generator 사전 점검',
+            decision: result.ok ? '점검 통과' : `점검 실패 (${result.failItems.length}개)`,
+            result: result.ok ? 'PASS' : result.failItems.slice(0, 3).join(' | ')
+        });
+        if (!result.ok) {
+            recordDecision(vp, 'V77 환경 점검 계층 도입', '생성기 설치 전 환경 점검으로 실행 실패 최소화');
+            recordDecision(vp, '생성기 설치 전 검증 우선', '환경 PASS 확인 후에만 실제 생성기 실행 허용');
+        }
+    } catch { /* 비중단 */ }
+    return result;
+});
+
+// ── V76 IPC 핸들러 ────────────────────────────────────────────
+ipcMain.handle('load-asset-generator-config', () => {
+    const cfg = loadAssetGeneratorConfig();
+    // Obsidian: 최초 설계 결정 기록 (중복 방지됨)
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        recordDecision(vp, '무료 로컬 3D 생성 엔진 우선 사용', 'Meshy/Tripo 등 유료 API 보다 로컬 실행 우선');
+        recordDecision(vp, 'Meshy/Tripo는 후순위', '유료 외부 API — allowExternalPaidApi=false 기본값 유지');
+        recordDecision(vp, '생성보다 Inspector와 품질검사 우선', 'V75 Inspector + 품질게이트가 생성 이전 우선');
+    } catch { /* 비중단 */ }
+    return cfg;
+});
+ipcMain.handle('save-asset-generator-config',  (_, cfg) => saveAssetGeneratorConfig(cfg || {}));
+ipcMain.handle('get-asset-generator-status',   (_, p) => getAssetGeneratorStatus(p || DEFAULT_PROJECT_PATH));
+ipcMain.handle('build-3d-generation-command',  (_, jobFile, p) => {
+    const config = loadAssetGeneratorConfig();
+    const content = jobFile && fs.existsSync(jobFile) ? fs.readFileSync(jobFile, 'utf8') : '';
+    return { ok: true, command: build3DGenerationCommand({ jobContent: content, jobFile: jobFile || '' }, config) };
+});
+ipcMain.handle('run-local-3d-generator', async (_, jobFile, p) => {
+    const result = await runLocal3DGenerator(jobFile || '', p || DEFAULT_PROJECT_PATH);
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        recordAgentMemory(vp, {
+            task: `로컬 3D 생성 실행: ${path.basename(jobFile || '없음')}`,
+            decision: result.ok ? '생성 성공' : `실패: ${result.reason}`,
+            result: result.ok ? 'done' : 'failed'
+        });
+    } catch { /* 비중단 */ }
+    return result;
+});
+ipcMain.handle('detect-generated-3d-assets', (_, p) => {
+    const result = detectGenerated3DAssets(p || DEFAULT_PROJECT_PATH);
+    try {
+        const vp = loadConfig().vaultPath || DEFAULT_VAULT_PATH;
+        if (result.ok && result.assets.length > 0) {
+            recordAgentMemory(vp, {
+                task: 'generated_assets 결과물 감지',
+                decision: `${result.assets.length}개 파일 감지`,
+                result: result.assets.map(a => a.name).join(', ')
+            });
+        }
+    } catch { /* 비중단 */ }
+    return result;
+});
+ipcMain.handle('write-3d-generation-log',      (_, p, content) => write3DGenerationLog(p || DEFAULT_PROJECT_PATH, content || ''));
+ipcMain.handle('dry-run-3d-generation',        (_, jobFile, p) => dryRun3DGeneration(jobFile || '', p || DEFAULT_PROJECT_PATH));
+
+// ── V74 IPC 핸들러 ────────────────────────────────────────────
+ipcMain.handle('build-knowledge-context',  (_, p, query) => buildKnowledgeContext(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH, query || ''));
+ipcMain.handle('record-agent-memory',      (_, p, entry) => recordAgentMemory(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH, entry || {}));
+ipcMain.handle('record-decision',          (_, p, decision, detail) => recordDecision(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH, decision || '', detail || ''));
+ipcMain.handle('generate-knowledge-summary', (_, p) => generateKnowledgeSummary(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH));
+ipcMain.handle('get-agent-memory',         (_, p) => getAgentMemory(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH));
+ipcMain.handle('get-project-decisions',    (_, p) => getProjectDecisions(p || loadConfig().vaultPath || DEFAULT_VAULT_PATH));
+
 ipcMain.on('window-minimize', () => mainWindow.minimize());
 ipcMain.on('window-maximize', () => mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize());
 ipcMain.on('window-close', () => mainWindow.hide());

@@ -101,7 +101,9 @@ function verify() {
 - 실패 태스크 수: 0
 `);
 
-    checks.push(mcpConfig && mcpConfig.filesystem && Array.isArray(mcpConfig.filesystem.allowedRoots) && mcpConfig.filesystem.allowedRoots.includes('C:\\ToribatAgent')
+    const hasAllowedRoot = mcpConfig && mcpConfig.filesystem && Array.isArray(mcpConfig.filesystem.allowedRoots) &&
+        (mcpConfig.filesystem.allowedRoots.includes('E:\\ToribatAgent') || mcpConfig.filesystem.allowedRoots.includes('C:\\ToribatAgent'));
+    checks.push(hasAllowedRoot
         ? pass('mcp.config.json 생성', 'filesystem.allowedRoots 기본값 감지')
         : fail('mcp.config.json 생성', 'MCP 설정 또는 allowedRoots 누락'));
 

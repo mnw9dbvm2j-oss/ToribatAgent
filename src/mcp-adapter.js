@@ -13,13 +13,13 @@ const DEFAULT_CONFIG = {
     filesystem: {
         enabled: false,
         allowedRoots: [
-            'C:\\ToribatAgent',
-            'E:\\ToribatMagicSchool'
+            'D:\\ToribatAgent',
+            'D:\\ToribatMagicSchool'
         ]
     },
     allowedRoots: [
-        'C:\\ToribatAgent',
-        'E:\\ToribatMagicSchool'
+        'D:\\ToribatAgent',
+        'D:\\ToribatMagicSchool'
     ]
 };
 
